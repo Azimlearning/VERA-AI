@@ -18,17 +18,31 @@ const OPENROUTER_IMAGE_URL = "https://openrouter.ai/api/v1/images/generations";
 
 /**
  * Tries to generate text content by iterating through a model chain.
+ * Returns both the text and metadata about which model was used.
+ * @param {string} prompt - The prompt to send to the model
+ * @param {object} keys - API keys object
+ * @param {boolean} outputJson - Whether to request JSON output
+ * @returns {Promise<{text: string, metadata: object}>} Object with text and model metadata
  */
 async function generateWithFallback(prompt, keys, outputJson = false) {
   // Use the text chain
   const AI_MODEL_CHAIN = TEXT_GENERATION_MODELS; 
   const fetch = (await import('node-fetch')).default;
   let lastError = null;
+  const promptLength = prompt.length;
+  const approxTokens = Math.ceil(promptLength / 4); // Rough estimate: ~4 chars per token
 
-  for (const config of AI_MODEL_CHAIN) {
+  console.log(`[generateWithFallback] Starting generation with ${AI_MODEL_CHAIN.length} models in chain`);
+  console.log(`[generateWithFallback] Prompt length: ${promptLength} chars (~${approxTokens} tokens)`);
+
+  for (let i = 0; i < AI_MODEL_CHAIN.length; i++) {
+    const config = AI_MODEL_CHAIN[i];
+    const modelStartTime = Date.now();
+    
     try {
-      console.log(`Attempting to generate content with model: ${config.model}`);
+      console.log(`[generateWithFallback] [${i + 1}/${AI_MODEL_CHAIN.length}] Attempting model: ${config.model} (type: ${config.type})`);
       let resultText;
+      let responseMetadata = {};
 
       if (config.type === 'gemini') {
         // --- Call Google Gemini API (using API Key) ---
@@ -38,6 +52,15 @@ async function generateWithFallback(prompt, keys, outputJson = false) {
         const generationConfig = outputJson ? { responseMimeType: "application/json" } : {};
         const result = await model.generateContent(prompt, generationConfig);
         resultText = result.response.text();
+        
+        // Extract metadata if available
+        if (result.response.usageMetadata) {
+          responseMetadata = {
+            promptTokenCount: result.response.usageMetadata.promptTokenCount,
+            candidatesTokenCount: result.response.usageMetadata.candidatesTokenCount,
+            totalTokenCount: result.response.usageMetadata.totalTokenCount
+          };
+        }
 
       } else if (config.type === 'openrouter') {
         // --- Call OpenRouter Chat API ---
@@ -70,21 +93,70 @@ async function generateWithFallback(prompt, keys, outputJson = false) {
 
         const data = await response.json();
         resultText = data.choices[0].message.content;
+        
+        // Extract metadata from OpenRouter response
+        if (data.usage) {
+          responseMetadata = {
+            promptTokens: data.usage.prompt_tokens,
+            completionTokens: data.usage.completion_tokens,
+            totalTokens: data.usage.total_tokens
+          };
+        }
       }
 
-      console.log(`Successfully generated content with model: ${config.model}`);
+      const modelLatency = Date.now() - modelStartTime;
+      const responseLength = resultText.length;
       const cleanedText = resultText.replace(/```json\n?|\n?```/g, '').trim();
-      return cleanedText; // Success!
+
+      // Build metadata object
+      const metadata = {
+        model: config.model,
+        modelType: config.type,
+        modelIndex: i,
+        success: true,
+        latencyMs: modelLatency,
+        responseLength: responseLength,
+        promptLength: promptLength,
+        ...responseMetadata
+      };
+
+      console.log(`[generateWithFallback] ✅ Success with model: ${config.model}`);
+      console.log(`[generateWithFallback]   - Latency: ${modelLatency}ms`);
+      console.log(`[generateWithFallback]   - Response length: ${responseLength} chars`);
+      if (responseMetadata.totalTokens || responseMetadata.totalTokenCount) {
+        console.log(`[generateWithFallback]   - Tokens: ${responseMetadata.totalTokens || responseMetadata.totalTokenCount}`);
+      }
+
+      // Return object with both text and metadata
+      return {
+        text: cleanedText,
+        metadata: metadata
+      };
 
     } catch (error) {
-      console.warn(`Failed to generate content with model ${config.model}:`, error.message);
+      const modelLatency = Date.now() - modelStartTime;
+      console.warn(`[generateWithFallback] ❌ Failed with model ${config.model} (${modelLatency}ms):`, error.message);
       lastError = error;
+      
+      // If this is not the last model, continue to next
+      if (i < AI_MODEL_CHAIN.length - 1) {
+        console.log(`[generateWithFallback]   → Falling back to next model...`);
+      }
     }
   }
 
   // If all models in the chain failed
-  console.error("All AI models in the fallback chain failed.", lastError);
-  throw lastError;
+  console.error("[generateWithFallback] ❌ All AI models in the fallback chain failed.");
+  console.error("[generateWithFallback] Last error:", lastError?.message);
+  
+  // Return error with metadata
+  const errorMetadata = {
+    success: false,
+    error: lastError?.message || 'Unknown error',
+    modelsAttempted: AI_MODEL_CHAIN.length
+  };
+  
+  throw Object.assign(lastError || new Error('All models failed'), { metadata: errorMetadata });
 }
 
 /**

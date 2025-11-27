@@ -23,7 +23,8 @@ async function generateMeetingSummary(content, keys) {
 Meeting content:
 ${content.substring(0, 8000)}`;
 
-    const summary = await generateWithFallback(prompt, keys);
+    const summaryResult = await generateWithFallback(prompt, keys);
+    const summary = summaryResult.text || summaryResult; // Handle both new and old format
     return summary;
   } catch (error) {
     console.error('[MeetX AI] Error generating summary:', error);
@@ -46,7 +47,8 @@ Meeting Title: ${meetingTitle}
 Meeting Content:
 ${meetingContent.substring(0, 6000)}`;
 
-    const cascadingSummary = await generateWithFallback(prompt, keys);
+    const cascadingSummaryResult = await generateWithFallback(prompt, keys);
+    const cascadingSummary = cascadingSummaryResult.text || cascadingSummaryResult; // Handle both new and old format
     return cascadingSummary;
   } catch (error) {
     console.error('[MeetX AI] Error generating cascading summary:', error);
@@ -121,7 +123,8 @@ Check for:
 Return a JSON array of warnings, each with "type" and "message" fields. If no conflicts, return empty array [].
 Format: {"warnings": [{"type": "Conflict Type", "message": "Description"}]}`;
 
-    const response = await generateWithFallback(prompt, keys, true);
+    const responseResult = await generateWithFallback(prompt, keys, true);
+    const response = responseResult.text || responseResult; // Handle both new and old format
     let warnings = [];
     
     try {
@@ -172,7 +175,8 @@ Return a JSON object with this structure:
 
 If no action items found, return empty arrays.`;
 
-    const response = await generateWithFallback(prompt, keys, true);
+    const responseResult = await generateWithFallback(prompt, keys, true);
+    const response = responseResult.text || responseResult; // Handle both new and old format
     
     let actionItems = [];
     let zombieTasks = [];
@@ -281,7 +285,8 @@ ${contextText}
 Provide a comprehensive answer based on the meeting context. If the answer is not in the provided context, say so.
 Cite which meetings you're referencing.`;
 
-    const answer = await generateWithFallback(prompt, keys);
+    const answerResult = await generateWithFallback(prompt, keys);
+    const answer = answerResult.text || answerResult; // Handle both new and old format
 
     return {
       answer,

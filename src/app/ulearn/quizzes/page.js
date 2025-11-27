@@ -3,11 +3,13 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaQuestionCircle, FaCheckCircle, FaTimesCircle, FaArrowLeft, FaArrowRight, FaRedo, FaTrophy } from 'react-icons/fa';
+import { FaQuestionCircle, FaCheckCircle, FaTimesCircle, FaArrowLeft, FaArrowRight, FaRedo, FaTrophy, FaPlus } from 'react-icons/fa';
 import { quizzes } from '../../../lib/quizData';
+import QuizGenerator from '../../../components/QuizAgent/QuizGenerator';
 
 const VIEW_MODES = {
   SELECTOR: 'selector',
+  GENERATE: 'generate',
   TAKING: 'taking',
   RESULTS: 'results'
 };
@@ -18,6 +20,7 @@ export default function QuizzesPage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState({});
   const [showExplanation, setShowExplanation] = useState(false);
+  const [showGenerator, setShowGenerator] = useState(false);
 
   // Start a quiz
   const startQuiz = (quiz) => {
@@ -71,6 +74,18 @@ export default function QuizzesPage() {
     setCurrentQuestionIndex(0);
     setUserAnswers({});
     setShowExplanation(false);
+    setShowGenerator(false);
+  };
+
+  // Handle quiz generation
+  const handleQuizGenerated = (generatedQuiz) => {
+    // Add generated quiz to the list and start it
+    setCurrentQuiz(generatedQuiz);
+    setCurrentQuestionIndex(0);
+    setUserAnswers({});
+    setShowExplanation(false);
+    setViewMode(VIEW_MODES.TAKING);
+    setShowGenerator(false);
   };
 
   // Calculate score
@@ -90,56 +105,99 @@ export default function QuizzesPage() {
     return { correct, total, percentage };
   };
 
+  // Wrapper component for all views
+  const PageWrapper = ({ children }) => (
+    <div>
+      {children}
+    </div>
+  );
+
   // Quiz Selector View
   if (viewMode === VIEW_MODES.SELECTOR) {
     return (
-      <section className="bg-white p-8 md:p-12 rounded-lg shadow-lg">
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-6">
-            <div className="bg-purple-100 p-6 rounded-full">
-              <FaQuestionCircle className="text-purple-600 text-6xl" />
+      <PageWrapper>
+        <section className="bg-white p-8 md:p-12 rounded-lg shadow-lg">
+          <div className="text-center mb-8">
+            <div className="flex justify-center mb-6">
+              <div className="bg-purple-100 p-6 rounded-full">
+                <FaQuestionCircle className="text-purple-600 text-6xl" />
+              </div>
             </div>
+            <h2 className="text-3xl font-extrabold text-gray-800 mb-4">Auto Quiz Creator</h2>
+            <p className="text-xl text-gray-600 mb-2">
+              AI-powered quiz generation from your content. Test knowledge and accelerate learning.
+            </p>
+            <p className="text-gray-500">
+              Select a quiz below or let AI generate one from your content.
+            </p>
           </div>
-          <h2 className="text-4xl font-extrabold text-gray-800 mb-4">Quizzes</h2>
-          <p className="text-xl text-gray-600 mb-2">
-            Test your knowledge about Systemic Shifts and Upstream operations.
-          </p>
-          <p className="text-gray-500">
-            Select a quiz below to begin your learning journey.
-          </p>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-          {quizzes.map((quiz, index) => (
-            <motion.div
-              key={quiz.id}
-              initial={{ opacity: 0, y: 20 }}
+          {/* Generate Quiz Button */}
+          <div className="mt-8 mb-6">
+            <motion.button
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1, duration: 0.4 }}
-              whileHover={{ scale: 1.02, y: -4 }}
+              whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                setShowGenerator(!showGenerator);
+                if (!showGenerator) {
+                  setViewMode(VIEW_MODES.GENERATE);
+                } else {
+                  setViewMode(VIEW_MODES.SELECTOR);
+                }
+              }}
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-4 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
             >
-              <button
-                onClick={() => startQuiz(quiz)}
-                className="w-full text-left bg-gradient-to-br from-purple-50 to-pink-50 p-6 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 border-2 border-transparent hover:border-purple-500"
-              >
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="bg-purple-600 p-3 rounded-lg">
-                    <FaQuestionCircle className="text-white text-2xl" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-purple-700">{quiz.title}</h3>
-                </div>
-                <p className="text-gray-700 mb-4">{quiz.description}</p>
-                <div className="flex items-center gap-2 text-purple-600 font-semibold">
-                  <span>{quiz.questions.length} Questions</span>
-                  <span>•</span>
-                  <span>~{Math.ceil(quiz.questions.length * 2)} minutes</span>
-                </div>
-              </button>
+              <FaPlus />
+              <span>{showGenerator ? 'Hide Quiz Generator' : 'Generate New Quiz with AI'}</span>
+            </motion.button>
+          </div>
+
+          {/* Quiz Generator */}
+          {showGenerator && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-8"
+            >
+              <QuizGenerator onQuizGenerated={handleQuizGenerated} />
             </motion.div>
-          ))}
-        </div>
-      </section>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+            {quizzes.map((quiz, index) => (
+              <motion.div
+                key={quiz.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1, duration: 0.4 }}
+                whileHover={{ scale: 1.02, y: -4 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <button
+                  onClick={() => startQuiz(quiz)}
+                  className="w-full text-left bg-gradient-to-br from-purple-50 to-pink-50 p-6 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 border-2 border-transparent hover:border-purple-500"
+                >
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="bg-purple-600 p-3 rounded-lg">
+                      <FaQuestionCircle className="text-white text-2xl" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-purple-700">{quiz.title}</h3>
+                  </div>
+                  <p className="text-gray-700 mb-4">{quiz.description}</p>
+                  <div className="flex items-center gap-2 text-purple-600 font-semibold">
+                    <span>{quiz.questions.length} Questions</span>
+                    <span>•</span>
+                    <span>~{Math.ceil(quiz.questions.length * 2)} minutes</span>
+                  </div>
+                </button>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      </PageWrapper>
     );
   }
 
@@ -151,7 +209,8 @@ export default function QuizzesPage() {
     const isLastQuestion = currentQuestionIndex === currentQuiz.questions.length - 1;
 
     return (
-      <section className="bg-white p-8 md:p-12 rounded-lg shadow-lg max-w-4xl mx-auto">
+      <PageWrapper showHeader={false}>
+        <section className="bg-white p-8 md:p-12 rounded-lg shadow-lg max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-6">
           <button
@@ -290,6 +349,7 @@ export default function QuizzesPage() {
           )}
         </div>
       </section>
+      </PageWrapper>
     );
   }
 
@@ -301,8 +361,9 @@ export default function QuizzesPage() {
     const isPassing = score.percentage >= 60;
 
     return (
-      <section className="bg-white p-8 md:p-12 rounded-lg shadow-lg max-w-4xl mx-auto">
-        {/* Score Summary */}
+      <PageWrapper showHeader={false}>
+        <section className="bg-white p-8 md:p-12 rounded-lg shadow-lg max-w-4xl mx-auto">
+          {/* Score Summary */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -430,8 +491,15 @@ export default function QuizzesPage() {
           </button>
         </div>
       </section>
+      </PageWrapper>
     );
   }
 
-  return null;
+  return (
+    <PageWrapper>
+      <div className="text-center py-12">
+        <p className="text-gray-600">Loading quiz...</p>
+      </div>
+    </PageWrapper>
+  );
 }

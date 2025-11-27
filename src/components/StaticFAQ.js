@@ -64,7 +64,7 @@ export default function StaticFAQ({ onQuestionClick }) {
             transition={{ duration: 0.5 }}
             className="text-3xl font-bold text-white mb-10 text-center"
           >
-            How can NexusGPT help you today?
+            How can Vera help you today?
           </motion.h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {questions.map((q, i) => (

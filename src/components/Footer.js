@@ -1,8 +1,17 @@
 // src/components/Footer.js
+'use client';
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
+  const pathname = usePathname();
+  
+  // Hide footer on Vera page
+  if (pathname?.startsWith('/vera')) {
+    return null;
+  }
 
   return (
     <footer className="bg-gray-900 text-gray-400 py-12 px-6">
@@ -24,9 +33,10 @@ export default function Footer() {
         <div>
           <h4 className="font-bold text-white mb-3 text-base">Quick Links</h4>
           <ul className="space-y-1">
-            <li><Link href="/#home" className="hover:text-white transition-colors">Home</Link></li>
+            <li><Link href="/" className="hover:text-white transition-colors">About</Link></li>
+            <li><Link href="/vera" className="hover:text-white transition-colors">Vera</Link></li>
+            <li><Link href="/agents" className="hover:text-white transition-colors">AI Agents</Link></li>
             <li><Link href="/nexushub" className="hover:text-white transition-colors">NexusHub</Link></li>
-            <li><Link href="/nexusgpt" className="hover:text-white transition-colors">NexusGPT</Link></li>
             <li><Link href="/submit-story" className="hover:text-white transition-colors">Submit Story</Link></li>
           </ul>
         </div>

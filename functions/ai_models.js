@@ -5,8 +5,11 @@
  * The chain attempts models in order until one succeeds.
  */
 const TEXT_GENERATION_MODELS = [
-  // Primary: Stable, reliable models first
-  { type: 'openrouter', model: 'x-ai/grok-4.1-fast' },
+  // Primary: GPT-4o-mini - Best balance of cost, performance, and reliability for chatbots
+  // Cost: $0.15/M input, $0.60/M output tokens | Context: 128K | 82% MMLU score
+  { type: 'openrouter', model: 'openai/gpt-4o-mini' },
+  // Fallback: Stable, reliable models
+  { type: 'openrouter', model: 'google/gemini-3-pro-preview' },
   { type: 'gemini', model: 'gemini-pro' },
   // Gemini 2.5 series
   { type: 'gemini', model: 'gemini-2.5-flash' },
@@ -16,7 +19,7 @@ const TEXT_GENERATION_MODELS = [
   { type: 'gemini', model: 'gemini-2.0-flash-lite' },
   { type: 'gemini', model: 'gemini-2.0-flash-preview-image-generation' },
   { type: 'gemini', model: 'gemini-2.0-flash' },
-  // OpenRouter Fallbacks
+  // Additional OpenRouter Fallbacks
   { type: 'openrouter', model: 'mistralai/mistral-7b-instruct:free' },
   { type: 'openrouter', model: 'openai/gpt-3.5-turbo' }, 
   { type: 'openrouter', model: 'z-ai/glm-4-32b' },

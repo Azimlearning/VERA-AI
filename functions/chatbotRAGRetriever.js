@@ -190,15 +190,21 @@ class ChatbotRAGRetriever {
    * @returns {string} Formatted context string
    */
   buildContextString(documents, options = {}) {
+    const buildStartTime = Date.now();
+    
     if (!documents || documents.length === 0) {
+      console.log('[ChatbotRAG] buildContextString: No documents provided, returning empty string');
       return '';
     }
 
     const maxTokens = Math.max(options.maxTokens || 750, 200);
     const approxCharsPerToken = 4;
 
+    console.log(`[ChatbotRAG] buildContextString: Building context from ${documents.length} documents (maxTokens: ${maxTokens})`);
+
     let context = '=== RELEVANT KNOWLEDGE BASE INFORMATION (PRIORITY SOURCE) ===\n\n';
     let tokensUsed = Math.ceil(context.length / approxCharsPerToken);
+    let documentsIncluded = 0;
 
     for (let i = 0; i < documents.length; i++) {
       const doc = documents[i];
@@ -218,6 +224,7 @@ class ChatbotRAGRetriever {
 
       context += docHeader;
       tokensUsed += headerTokens;
+      documentsIncluded++;
 
       const remainingTokens = maxTokens - tokensUsed - footerTokens;
       if (remainingTokens <= 0) {
@@ -243,7 +250,14 @@ class ChatbotRAGRetriever {
     }
 
     context += '=== END KNOWLEDGE BASE INFORMATION ===\n\n';
-    console.log(`[ChatbotRAG] Context window built using ~${tokensUsed} tokens (limit ${maxTokens})`);
+    
+    const buildDuration = Date.now() - buildStartTime;
+    const finalContextLength = context.length;
+    
+    console.log(`[ChatbotRAG] buildContextString: Context built in ${buildDuration}ms`);
+    console.log(`[ChatbotRAG] buildContextString: Final context length: ${finalContextLength} chars (~${tokensUsed} tokens, limit: ${maxTokens})`);
+    console.log(`[ChatbotRAG] buildContextString: Documents included: ${documentsIncluded}/${documents.length}`);
+    
     return context.trim();
   }
 

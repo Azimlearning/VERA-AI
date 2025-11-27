@@ -1,15 +1,33 @@
-# Systemic Shifts Microsite
+# VERA AI
 
-A comprehensive Next.js-based microsite for PETRONAS Upstream's Systemic Shifts initiative, featuring AI-powered tools, analytics, and content management.
+An intelligent AI assistant designed specifically for PETRONAS Upstream, powered by advanced RAG (Retrieval-Augmented Generation) technology and specialized AI agents to accelerate workflows and provide expert knowledge.
 
 ## Overview
 
-The Systemic Shifts Microsite is a digital platform designed to support PETRONAS Upstream's transformation journey toward PETRONAS 2.0 by 2035. The platform provides:
+VERA AI is a comprehensive AI platform built to support PETRONAS Upstream's digital transformation journey. VERA serves as the core AI intelligence with deep knowledge about:
 
-- **AI-Powered Features**: NexusGPT chatbot, image generation, podcast creation, and meeting organization
-- **Analytics Dashboard**: StatsX provides comprehensive analytics and insights
-- **Content Management**: Article hub, story submissions, and knowledge base management
-- **Collaboration Tools**: Upstream Gallery, collaterals, and meeting management
+- **PETRONAS** (high-level corporate information)
+- **PETRONAS Upstream** (upstream operations, strategies, and initiatives)
+- **Systemic Shifts** (transformation initiatives and progress tracking)
+
+VERA combines advanced AI capabilities with a specialized knowledge base to deliver accurate, citation-backed responses and accelerate various workflows through its ecosystem of specialized AI agents.
+
+## Key Features
+
+### 🤖 Core AI Intelligence (VERA)
+- **RAG-Powered Knowledge Base**: Retrieval-Augmented Generation ensures accurate, context-aware responses
+- **Citation-Backed Answers**: Every response includes source citations for transparency and verification
+- **Specialized Knowledge**: Deep understanding of PETRONAS, PETRONAS Upstream, and Systemic Shifts
+- **Conversational Interface**: Natural language interaction with streaming responses
+
+### 🚀 Six Specialized AI Agents
+
+1. **Analytics Agent**: Data insights and analytics automation
+2. **Meetings Agent**: Meeting organization, action item extraction, and insights
+3. **Podcast Agent**: AI-powered podcast generation from knowledge base content
+4. **Content Agent**: Story drafting and content creation assistance
+5. **Visual Agent**: Image analysis and generation capabilities
+6. **Quiz Agent**: Knowledge testing and assessment generation
 
 ## Tech Stack
 
@@ -36,38 +54,10 @@ The Systemic Shifts Microsite is a digital platform designed to support PETRONAS
 - **Package Manager**: npm
 - **Version Control**: Git
 
-## Key Features
-
-### 1. NexusGPT
-AI-powered chatbot with RAG (Retrieval-Augmented Generation) capabilities that answers questions using the knowledge base.
-
-### 2. StatsX Analytics Dashboard
-Comprehensive analytics dashboard tracking:
-- Story submissions and engagement
-- Meeting analytics
-- Article views, likes, and comments
-- Knowledge base usage
-- AI insights and predictions
-
-### 3. Systemic Shifts Dropbox
-Submission system for stories with:
-- AI-generated writeups
-- AI-generated infographic images
-- Asynchronous image generation with progress tracking
-
-### 4. ULearn
-AI-powered podcast generation from knowledge base content.
-
-### 5. MeetX
-Meeting organization and management with AI-powered insights.
-
-### 6. Upstream Gallery
-Image gallery with AI-powered categorization and search.
-
 ## Project Structure
 
 ```
-systemicshiftsver2/
+vera-ai/
 ├── src/
 │   ├── app/              # Next.js app router pages
 │   ├── components/       # React components
@@ -90,7 +80,7 @@ systemicshiftsver2/
 1. Clone the repository
 ```bash
 git clone <repository-url>
-cd systemicshiftsver2
+cd vera-ai
 ```
 
 2. Install dependencies
@@ -127,11 +117,11 @@ npm run dev
 
 ### Node.js Functions
 Located in `functions/` directory:
-- `analyzeStorySubmission` - Analyzes story submissions and generates AI content
-- `askChatbot` - NexusGPT chatbot endpoint
+- `askChatbot` - VERA AI chatbot endpoint with RAG
 - `generateImageHf` - Image generation using Hugging Face
 - `generatePodcast` - Podcast generation
-- `triggerImageGeneration` - Manual image generation trigger
+- `generateQuiz` - Quiz generation
+- `meetxAI` - Meeting insights and processing
 
 ### Python Functions
 Located in `functions-python/` directory:
@@ -166,9 +156,8 @@ See `SETUP.md` for detailed setup instructions including:
 
 - `SETUP.md` - Detailed setup and configuration guide
 - `TESTING.md` - Testing procedures and checklist
-- `SITE_BREAKSOWN.md` - Full site architecture and API documentation
+- `SITE_BREAKDOWN.md` - Full site architecture and API documentation
 - `Scripts_usage/README.md` - Utility scripts documentation
-- `FULL_DOCUMENTATION.md` - Full detailed site documentation
 
 ## Contributing
 

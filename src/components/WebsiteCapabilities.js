@@ -53,11 +53,11 @@ export default function WebsiteCapabilities() {
       gradient: 'from-indigo-500 to-purple-500'
     },
     {
-      id: 'nexusgpt',
-      title: 'NexusGPT AI Assistant',
-      description: 'Get instant answers and insights powered by AI technology',
+      id: 'vera',
+      title: 'Vera - Core AI Assistant',
+      description: 'The intelligence that powers our mega AI platform with RAG-powered knowledge',
       icon: FaRobot,
-      href: '/nexusgpt',
+      href: '/vera',
       gradient: 'from-purple-500 to-pink-500'
     },
     {

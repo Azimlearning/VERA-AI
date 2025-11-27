@@ -28,10 +28,30 @@ html {
   }
 }
 
+/* Apply Inter to the whole app */
+body, button, input, textarea {
+  font-family: var(--font-inter), 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased; /* Makes font look crisp on Mac */
+  -moz-osx-font-smoothing: grayscale;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* 1. Tighter Headings (Tier 1 look) */
+h1, h2, h3, .hero-logo {
+  letter-spacing: -0.025em; /* Subtle squeeze makes it look modern */
+  font-weight: 600;
+}
+
+/* 2. Luxury Whitespace for Chat Text */
+/* Apply this to your chat message bubble text class */
+.message-content, .bot-response-text, .prose p, .prose li {
+  font-size: 15px; /* Standard for AI chats */
+  line-height: 1.6; /* The "Luxury" spacing */
+  color: #1f2937; /* Dark grey (softer than pure black) */
 }
 
 /* src/app/globals.css */
@@ -112,6 +132,47 @@ body {
   scrollbar-color: rgba(107, 114, 128, 0.5) rgba(55, 65, 81, 0.3);
 }
 
+/* Custom scrollbar for input textarea - shown when needed */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* For chat history sidebar - modern thin scrollbar */
+.chat-history-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-history-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-history-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.chat-history-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.chat-history-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
 
 /* ... other styles ... */
 
@@ -145,4 +206,404 @@ body {
 
 .animation-delay-4000 {
   animation-delay: 4s;
+}
+
+/* Empty State Hero Wrapper - Grok/Gemini Style */
+.empty-state-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Horizontally Center */
+  justify-content: center; /* Vertically Center */
+  
+  /* Take up the full visible screen height, minus header/sidebar padding */
+  height: 85vh;
+  width: 100%;
+  padding: 20px;
+}
+
+/* Hero Logo Styling */
+.hero-logo {
+  font-size: 48px; /* Big & Bold */
+  font-weight: 700;
+  background: linear-gradient(to right, #009688, #26A69A); /* Teal Gradient */
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 10px;
+}
+
+/* Hero Text Styling */
+.hero-text {
+  font-size: 20px;
+  color: #666;
+  margin-bottom: 40px; /* Space between text and input bar */
+}
+
+/* Input Wrapper - Limits width like Gemini */
+.input-wrapper {
+  width: 100%;
+  max-width: 800px; /* Limits width like Gemini */
+}
+
+/* Suggestion Container - Grid Layout (2x2) */
+.suggestion-container-bottom {
+  display: grid; /* Switched from flex to grid */
+  grid-template-columns: 1fr 1fr; /* Create 2 equal columns */
+  gap: 12px;
+  
+  width: 100%;
+  max-width: 850px; /* Match the new input bar width */
+  margin: 20px auto 0 auto;
+}
+
+/* Mobile Responsiveness: Stack them on small screens */
+@media (max-width: 768px) {
+  .suggestion-container-bottom {
+    grid-template-columns: 1fr; /* 1 column on mobile */
+  }
+}
+
+/* Message Row Alignment */
+.message-row-user {
+  align-items: flex-start; /* Align to top is usually better for long text */
+}
+
+/* User Avatar Alignment */
+.user-avatar {
+  margin-top: 4px; /* Push it down to match the text line height */
+}
+
+/* Sources Section - Perplexity/Gemini Style */
+.sources-section {
+  margin-top: 16px;
+  padding-top: 0;
+}
+
+.sources-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #999;
+  margin-bottom: 8px;
+  display: block;
+}
+
+/* 1. The Container - Hides Scrollbar & Aligns Content */
+.sources-container {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Tighter gap */
+  
+  /* Allow scrolling but hide the bar */
+  overflow-x: auto;
+  
+  /* IMPORTANT: Hides the ugly grey scrollbar */
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+  
+  padding: 12px 0;
+  margin-top: 8px;
+  border-top: 1px solid #f0f0f0; /* Subtle separator line */
+}
+
+/* Hide scrollbar for Chrome/Safari/Opera */
+.sources-container::-webkit-scrollbar {
+  display: none;
+}
+
+/* 2. The Compact Card - Much Smaller */
+.source-card {
+  display: flex;
+  align-items: center;
+  
+  /* FIXED SIZE: Keeps them uniform and small */
+  width: 160px; 
+  height: 46px; /* Reduced from 60px */
+  
+  /* Prevent shrinking or growing */
+  flex-shrink: 0; 
+  
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 0 10px;
+  
+  text-decoration: none; /* If using <a> tags */
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.source-card:hover {
+  background: #f8f9fa;
+  border-color: #bbb;
+  transform: translateY(-1px);
+}
+
+/* 3. The Icon - Smaller */
+.source-icon {
+  width: 24px;
+  height: 24px;
+  font-size: 14px; /* Smaller emoji/icon */
+  
+  background: #e0f2f1; /* Light Teal */
+  color: #009688;
+  border-radius: 4px;
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+/* 4. The Text - Smaller & Cleaner */
+.source-text-wrapper {
+  overflow: hidden; /* Cuts off long text */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.source-title {
+  font-size: 11px; /* Smaller font */
+  font-weight: 600;
+  color: #333;
+  
+  /* Truncate text with "..." */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.source-subtitle {
+  font-size: 9px; /* Very small subtitle */
+  color: #888;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The Pills */
+.suggestion-pill {
+  /* Make the pill fill the grid cell */
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start; /* Align text to left */
+  gap: 8px; /* Space between icon and text */
+  
+  text-align: left;
+  min-height: 42px; /* Ensure they are all the same height */
+  
+  /* Styling - Visible and clickable */
+  background-color: #f8f9fa; /* Very light grey background */
+  border: 1px solid #e9ecef; /* Slightly darker border */
+  border-radius: 100px;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: #495057; /* Darker grey text for readability */
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  /* Add a subtle shadow so they lift off the page */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.suggestion-pill:hover {
+  background-color: #e2e8f0;
+  border-color: #d1d5db;
+  color: #111;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+/* Sidebar Scrollbar Styling */
+.sidebar-content::-webkit-scrollbar {
+  width: 6px; /* Very thin */
+}
+
+/* The background of the scrollbar (make it transparent) */
+.sidebar-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* The moving part of the scrollbar */
+.sidebar-content::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2); /* Semi-transparent white */
+  border-radius: 10px; /* Round edges */
+}
+
+/* Hover effect */
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Firefox scrollbar styling */
+.sidebar-content {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+/* Ghost Delete Button for Sidebar */
+/* 1. The Container for a single history item */
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  margin-bottom: 2px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+  
+  /* RELATIVE positioning so the button stays put */
+  position: relative; 
+}
+
+.history-item:hover {
+  background-color: rgba(255, 255, 255, 0.05); /* Light hover effect */
+}
+
+/* 2. The Title Text */
+.history-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-grow: 1; /* Takes up all space */
+  font-size: 13px;
+  color: #d1d5db; /* Light grey text */
+}
+
+/* 3. The Delete Button (The Magic Part) */
+.delete-btn {
+  /* Invisible by default */
+  opacity: 0; 
+  visibility: hidden;
+  
+  /* Make it blend in */
+  background: transparent;
+  border: none;
+  color: #ef4444; /* Red color */
+  cursor: pointer;
+  padding: 4px;
+  
+  transition: all 0.2s ease-in-out;
+}
+
+/* 4. THE HOVER TRIGGER */
+/* When hovering the ROW, show the BUTTON */
+.history-item:hover .delete-btn {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Gemini Style Input Box */
+/* 1. The Main Box Wrapper */
+.chat-input-wrapper {
+  background: white;
+  border: 1px solid #e5e7eb; /* Subtle border */
+  border-radius: 16px; /* Large curves like Gemini */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  
+  width: 100%;
+  max-width: 850px; /* Wider to accommodate tools */
+  margin: 0 auto;
+  padding: 12px;
+  
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.2s;
+}
+
+.chat-input-wrapper:focus-within {
+  border-color: #009688; /* Highlight border when typing */
+  box-shadow: 0 4px 12px rgba(0, 150, 136, 0.15);
+}
+
+/* 2. The Text Area (Invisible) */
+.chat-textarea {
+  width: 100%;
+  border: none;
+  outline: none;
+  resize: none; /* User shouldn't resize manually */
+  font-size: 16px;
+  color: #333;
+  background: transparent;
+  min-height: 40px;
+  max-height: 200px;
+  font-family: inherit;
+}
+
+/* 3. The Footer Row */
+.chat-input-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px; /* Space between text and buttons */
+}
+
+/* 4. Left: Tools Button */
+.tool-btn {
+  background: #f3f4f6;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.2s;
+}
+
+.tool-btn:hover {
+  background: #e5e7eb;
+}
+
+/* 5. Right: Model Selector */
+.model-selector-btn {
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  color: #6b7280;
+  cursor: pointer;
+  margin-right: 12px;
+  padding: 6px;
+  border-radius: 6px;
+}
+
+.model-selector-btn:hover {
+  background: #f9fafb;
+  color: #111;
+}
+
+/* 6. Right: Send Button */
+.send-btn-filled {
+  background: #009688; /* Your VERA Teal */
+  color: white;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px; /* Squircle shape */
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+
+.send-btn-filled:hover {
+  opacity: 0.9;
+}
+
+.send-btn-filled:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
