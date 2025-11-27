@@ -28,7 +28,7 @@ export default function MiniChatWidget() {
         <div className="fixed bottom-6 left-6 w-[90vw] max-w-sm h-[70vh] max-h-[500px] bg-white rounded-lg shadow-2xl flex flex-col border border-gray-300 z-50 animate-fade-in-up">
           {/* Header */}
           <div className="flex justify-between items-center p-3 bg-teal-600 text-white rounded-t-lg">
-            <h3 className="font-semibold">Nexus Assistant</h3>
+            <h3 className="font-semibold">Vera</h3>
             <button
               onClick={() => setIsOpen(false)}
               className="text-white hover:bg-teal-700 p-1 rounded-full"

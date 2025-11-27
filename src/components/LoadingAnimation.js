@@ -7,12 +7,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 /**
  * Loading Animation Component
  * 
- * Displays an animated text reveal that spells out "UPSTREAMBUZZ" letter by letter
- * Inspired by phamilypharma.com loading effect
+ * Displays an animated text reveal that spells out "VERA" letter by letter
+ * Shows the core AI platform branding
  */
 export default function LoadingAnimation() {
   const [isVisible, setIsVisible] = useState(true);
-  const text = "UPSTREAMBUZZ";
+  const text = "VERA";
   const letters = text.split('');
 
   useEffect(() => {
@@ -54,10 +54,10 @@ export default function LoadingAnimation() {
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 1.2, duration: 0.5 }}
+              transition={{ delay: 0.5, duration: 0.5 }}
               className="text-teal-200 text-lg md:text-xl mt-4"
             >
-              Your Source for PETRONAS Upstream Stories & Insights
+              Mega AI Platform - Accelerating Workflows
             </motion.p>
           </div>
         </motion.div>

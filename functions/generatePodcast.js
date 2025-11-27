@@ -205,8 +205,12 @@ Return strict JSON following the structure shown above.`
       // Generate podcast content
       console.log(`${logPrefix} Calling generateWithFallback to generate podcast...`);
       const llmStart = Date.now();
-      const podcastJson = await generateWithFallback(podcastPrompt, keys, true);
+      const podcastResult = await generateWithFallback(podcastPrompt, keys, true);
+      const podcastJson = podcastResult.text || podcastResult; // Handle both new and old format
       console.log(`${logPrefix} Received response from LLM (${podcastJson.length} characters) in ${Date.now() - llmStart} ms`);
+      if (podcastResult.metadata) {
+        console.log(`${logPrefix} Model used: ${podcastResult.metadata.model}`);
+      }
 
       // Parse the JSON response
       let podcastData;

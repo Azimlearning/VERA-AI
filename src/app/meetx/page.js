@@ -114,15 +114,16 @@ export default function MeetXPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          {error}
-        </div>
-      )}
-      {viewMode === 'list' && (
-        <>
-          {/* AI Insights Stats */}
-          <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 mb-6">
+
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+              {error}
+            </div>
+          )}
+          {viewMode === 'list' && (
+            <>
+              {/* AI Insights Stats */}
+              <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-teal-50 rounded-lg p-4 border border-teal-200">
                 <div className="text-2xl font-bold text-teal-700">{meetingsWithInsights.length}</div>

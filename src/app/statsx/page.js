@@ -26,12 +26,6 @@ export default async function StatsXPage() {
       <Header />
       <main className="flex-grow relative z-10">
         <div className="container mx-auto px-4 md:px-6 py-6 md:py-8">
-          {/* Header Section */}
-          <div className="mb-6">
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-2">StatsX Analytics</h1>
-            <p className="text-gray-500 text-lg">Comprehensive analytics dashboard with AI-powered insights</p>
-          </div>
-
           {error ? (
             <div className="bg-red-50 border border-red-200 rounded-3xl p-5 mb-6 shadow-sm">
               <p className="text-red-800">Error loading dashboard data: {error}</p>

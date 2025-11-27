@@ -230,15 +230,18 @@ exports.analyzeStorySubmission = onDocumentCreated(
     let aiInfographicConcept = { error: "AI infographic concept generation failed." };
     let aiGeneratedImageUrl = "Image generation skipped/failed.";
 
-    // --- Use Python Cloud Function for image generation (uses diffusers library) ---
-    // Python Cloud Function using diffusers - v2 functions use .run.app domain
-    const HF_WORKER_URL = process.env.GENERATE_IMAGE_URL || 'https://generateimagehfpython-el2jwxb5bq-uc.a.run.app';
+    // --- Image generation is handled by local_image_generator.py service ---
+    // The local Python service monitors Firestore and generates images asynchronously
+    // No need for Cloud Function image generation URL here
+    // const HF_WORKER_URL = process.env.GENERATE_IMAGE_URL || 'https://generateimagehfpython-el2jwxb5bq-uc.a.run.app'; // Unused - local generator handles images
 
     try {
-      const writeupRaw = await generateWithFallback(writeupPrompt, keys, false);
+      const writeupResult = await generateWithFallback(writeupPrompt, keys, false);
+      const writeupRaw = writeupResult.text || writeupResult; // Handle both new and old format
       aiWriteup = writeupRaw; 
 
-      const infographicRaw = await generateWithFallback(infographicPrompt, keys, true);
+      const infographicResult = await generateWithFallback(infographicPrompt, keys, true);
+      const infographicRaw = infographicResult.text || infographicResult; // Handle both new and old format
       
       // Try to parse JSON, handling markdown code blocks
       let cleanedJson = infographicRaw.trim();
@@ -468,7 +471,8 @@ Description: ${(storyData.nonShiftDescription || storyData.storyDescription || '
 
 Return JSON with: {"title": "...", "keyMetrics": [{"label": "...", "value": "..."}]}`;
 
-          const conceptRaw = await generateWithFallback(conceptPrompt, keys, false);
+          const conceptResult = await generateWithFallback(conceptPrompt, keys, false);
+          const conceptRaw = conceptResult.text || conceptResult; // Handle both new and old format
           
           try {
             let cleanedJson = conceptRaw.trim();
@@ -661,8 +665,32 @@ Respond now following the format above.`);
 
       const fullPrompt = promptSections.join('\n\n');
       const llmStart = Date.now();
-      const aiResponseRaw = await generateWithFallback(fullPrompt, keys, false);
-      console.log(`${logPrefix} LLM generation completed in ${Date.now() - llmStart} ms`);
+      
+      // Generate response with model fallback (now returns {text, metadata})
+      let aiResponseResult;
+      try {
+        aiResponseResult = await generateWithFallback(fullPrompt, keys, false);
+      } catch (error) {
+        // Handle error with metadata if available
+        const errorMetadata = error.metadata || { success: false, error: error.message };
+        console.error(`${logPrefix} ❌ LLM generation failed after ${Date.now() - llmStart} ms`);
+        console.error(`${logPrefix} Model metadata:`, JSON.stringify(errorMetadata, null, 2));
+        throw error; // Re-throw to be caught by outer catch
+      }
+      
+      // Extract text and metadata from response
+      const aiResponseRaw = aiResponseResult.text || aiResponseResult; // Backward compatibility
+      const modelMetadata = aiResponseResult.metadata || {};
+      
+      const totalLatency = Date.now() - llmStart;
+      console.log(`${logPrefix} ✅ LLM generation completed in ${totalLatency} ms`);
+      console.log(`${logPrefix} 📊 Model used: ${modelMetadata.model || 'unknown'} (${modelMetadata.modelType || 'unknown'})`);
+      if (modelMetadata.latencyMs) {
+        console.log(`${logPrefix} 📊 Model latency: ${modelMetadata.latencyMs} ms`);
+      }
+      if (modelMetadata.totalTokens || modelMetadata.totalTokenCount) {
+        console.log(`${logPrefix} 📊 Total tokens: ${modelMetadata.totalTokens || modelMetadata.totalTokenCount}`);
+      }
 
       let mainReply = aiResponseRaw;
       let suggestions = [];
@@ -680,11 +708,25 @@ Respond now following the format above.`);
         suggestions = suggestionLines.map(line => line.substring(1).trim().replace(/\?$/, ''));
       }
 
+      // Build response payload with optional debug metadata
       const responsePayload = { 
         reply: mainReply, 
         suggestions: suggestions,
         citations: citations.length > 0 ? citations : undefined
       };
+
+      // Add model metadata for debugging (can be enabled via query param or env var)
+      const includeDebugInfo = req.query.debug === 'true' || process.env.CHATBOT_DEBUG === 'true';
+      if (includeDebugInfo && modelMetadata) {
+        responsePayload._debug = {
+          model: modelMetadata.model,
+          modelType: modelMetadata.modelType,
+          latencyMs: modelMetadata.latencyMs,
+          responseLength: modelMetadata.responseLength,
+          promptLength: modelMetadata.promptLength,
+          tokens: modelMetadata.totalTokens || modelMetadata.totalTokenCount
+        };
+      }
 
       await setCachedChatResponse(responseCacheKey, responsePayload);
 
@@ -765,6 +807,8 @@ exports.analyzeImage = onRequest(
 
 // ✅ 7. Generate Podcast Function
 const { createGeneratePodcastHandler } = require('./generatePodcast');
+const { createGenerateQuizHandler } = require('./generateQuiz');
+
 exports.generatePodcast = onRequest(
   {
     region: 'us-central1',
@@ -773,6 +817,17 @@ exports.generatePodcast = onRequest(
     memory: '1GiB',
   },
   createGeneratePodcastHandler(geminiApiKey, openRouterApiKey)
+);
+
+// ✅ 7b. Generate Quiz Function
+exports.generateQuiz = onRequest(
+  {
+    region: 'us-central1',
+    secrets: [geminiApiKey, openRouterApiKey],
+    timeoutSeconds: 300,
+    memory: '1GiB',
+  },
+  createGenerateQuizHandler(geminiApiKey, openRouterApiKey)
 );
 
 // ✅ 8. Populate Knowledge Base Function
