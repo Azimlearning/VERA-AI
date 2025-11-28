@@ -3,17 +3,20 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { FaPlus, FaHome, FaTrash, FaSearch, FaChevronDown, FaChevronUp, FaInfoCircle, FaRobot, FaDatabase, FaEllipsisH } from 'react-icons/fa';
+import { usePathname, useRouter } from 'next/navigation';
+import { FaPlus, FaTrash, FaSearch, FaChevronDown, FaChevronUp, FaInfoCircle, FaRobot } from 'react-icons/fa';
 import { db } from '../../lib/firebase';
 import { collection, getDocs, query, orderBy, limit, deleteDoc, doc } from 'firebase/firestore';
+import VeraLogo from '../brand/VeraLogo';
 
 // --- NOW accepts an 'onNewChat' prop and 'onLoadSession' callback ---
 export default function ChatHistorySidebar({ onNewChat, onLoadSession, currentSessionId, selectedAgent = null }) {
+  const pathname = usePathname();
+  const router = useRouter();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedGroups, setExpandedGroups] = useState({ 'today': true, 'yesterday': true, 'week': true });
-  const [expandedNav, setExpandedNav] = useState({ 'knowledgeBase': false, 'more': false });
 
   // Helper function to format relative time
   const formatRelativeTime = (timestamp) => {
@@ -152,15 +155,24 @@ export default function ChatHistorySidebar({ onNewChat, onLoadSession, currentSe
     <nav className="w-full flex-shrink-0 flex flex-col h-full bg-gray-800">
       {/* Sticky Header with VERA Logo and New Chat Button */}
       <div className="sticky top-0 z-10 bg-gray-800 border-b border-gray-700 p-4">
-        {/* VERA Logo */}
-        <div className="mb-4 text-center">
-          <h1 className="text-2xl font-extrabold bg-gradient-to-r from-teal-400 via-cyan-400 to-teal-400 bg-clip-text text-transparent">
-            VERA
-          </h1>
+        {/* VERA Logo - Clickable to Dashboard */}
+        <div className="mb-4 flex justify-center">
+          <VeraLogo 
+            size="medium" 
+            showText={true} 
+            variant="sidebar"
+            onClick={() => router.push('/')}
+          />
         </div>
         
         <motion.button
-          onClick={onNewChat}
+          onClick={() => {
+            if (onNewChat) {
+              onNewChat();
+            } else {
+              window.location.href = '/vera';
+            }
+          }}
           whileHover={{ scale: 1.02, y: -2 }}
           whileTap={{ scale: 0.98 }}
           className="new-chat-btn w-full flex items-center justify-center gap-2 px-4 py-3 text-white bg-transparent border border-white/20 hover:bg-white/10 hover:border-white rounded-xl font-semibold transition-all mb-3"
@@ -168,22 +180,20 @@ export default function ChatHistorySidebar({ onNewChat, onLoadSession, currentSe
           <FaPlus className="w-4 h-4" />
           <span>New Chat</span>
         </motion.button>
-        <motion.div
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <Link href="/" className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors" title="Back to Main Site">
-            <FaHome className="w-4 h-4" />
-            <span>Back to Site</span>
-          </Link>
-        </motion.div>
       </div>
       
       {/* Navigation Section */}
       <div className="px-4 py-2 border-b border-gray-700">
         <div className="space-y-1">
-          {/* About */}
-          <Link href="/" className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors">
+          {/* About / Dashboard */}
+          <Link 
+            href="/" 
+            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+              pathname === '/' 
+                ? 'text-teal-400 bg-gray-700' 
+                : 'text-gray-300 hover:text-white hover:bg-gray-700'
+            }`}
+          >
             <FaInfoCircle className="w-4 h-4" />
             <span>About</span>
           </Link>
@@ -191,89 +201,15 @@ export default function ChatHistorySidebar({ onNewChat, onLoadSession, currentSe
           {/* AI Agents */}
           <Link 
             href="/agents" 
-            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors sidebar-nav-link ${
-              selectedAgent 
-                ? 'active-agent text-teal-400' 
+            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+              pathname === '/agents' 
+                ? 'text-teal-400 bg-gray-700' 
                 : 'text-gray-300 hover:text-white hover:bg-gray-700'
             }`}
           >
             <FaRobot className="w-4 h-4" />
             <span>AI Agents</span>
           </Link>
-          
-          {/* Knowledge Base - Expandable */}
-          <div>
-            <button
-              onClick={() => setExpandedNav(prev => ({ ...prev, knowledgeBase: !prev.knowledgeBase }))}
-              className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <FaDatabase className="w-4 h-4" />
-                <span>Knowledge Base</span>
-              </div>
-              {expandedNav.knowledgeBase ? <FaChevronUp className="w-3 h-3" /> : <FaChevronDown className="w-3 h-3" />}
-            </button>
-            <AnimatePresence>
-              {expandedNav.knowledgeBase && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="ml-6 mt-1 space-y-1"
-                >
-                  <Link href="/knowledge-base" className="block px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded transition-colors">
-                    Overview
-                  </Link>
-                  <Link href="/petronas-2.0" className="block px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded transition-colors">
-                    PETRONAS 2.0
-                  </Link>
-                  <Link href="/systemic-shifts/upstream-target" className="block px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded transition-colors">
-                    Systemic Shifts
-                  </Link>
-                  <Link href="/articles" className="block px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded transition-colors">
-                    Articles
-                  </Link>
-                  <Link href="/knowledge-base/upstreambuzz" className="block px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded transition-colors">
-                    UpstreamBuzz
-                  </Link>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-          
-          {/* More - Expandable */}
-          <div>
-            <button
-              onClick={() => setExpandedNav(prev => ({ ...prev, more: !prev.more }))}
-              className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <FaEllipsisH className="w-4 h-4" />
-                <span>More</span>
-              </div>
-              {expandedNav.more ? <FaChevronUp className="w-3 h-3" /> : <FaChevronDown className="w-3 h-3" />}
-            </button>
-            <AnimatePresence>
-              {expandedNav.more && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="ml-6 mt-1 space-y-1"
-                >
-                  <Link href="/nexushub" className="block px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded transition-colors">
-                    NexusHub
-                  </Link>
-                  <Link href="/ulearn" className="block px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded transition-colors">
-                    ULearn
-                  </Link>
-                  <Link href="/submit-story" className="block px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded transition-colors">
-                    Submit Stories
-                  </Link>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
         </div>
       </div>
       

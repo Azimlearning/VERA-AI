@@ -3,7 +3,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaUserCircle, FaRobot, FaDatabase, FaCog, FaBars, FaTimes, FaChevronLeft } from 'react-icons/fa';
+import { useSearchParams } from 'next/navigation';
+import { FaUserCircle, FaDatabase, FaCog, FaBars, FaTimes, FaChevronLeft, FaChartLine, FaUsers, FaPodcast, FaFileAlt, FaImages, FaQuestionCircle } from 'react-icons/fa';
+import VeraLogo from '../../components/brand/VeraLogo';
 import ChatHistorySidebar from '../../components/chat/ChatHistorySidebar';
 import KnowledgeBaseInjector from '../../components/KnowledgeBaseInjector';
 import AgentSelector from '../../components/vera/AgentSelector';
@@ -21,8 +23,62 @@ import ArtifactPanel from '../../components/vera/ArtifactPanel';
 import { db } from '../../lib/firebase';
 import { collection, addDoc, updateDoc, doc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 
+// Agent definitions matching AgentSelector
+const AGENTS = [
+  {
+    id: 'analytics',
+    name: 'Analytics Agent',
+    description: 'AI-powered data insights & forecasting',
+    icon: FaChartLine,
+    gradient: 'from-blue-400 to-cyan-500',
+    color: 'blue',
+  },
+  {
+    id: 'meetings',
+    name: 'Meetings Agent',
+    description: 'AI meeting analysis & action items',
+    icon: FaUsers,
+    gradient: 'from-purple-400 to-pink-500',
+    color: 'purple',
+  },
+  {
+    id: 'podcast',
+    name: 'Podcast Agent',
+    description: 'AI podcast creation',
+    icon: FaPodcast,
+    gradient: 'from-orange-400 to-red-500',
+    color: 'orange',
+  },
+  {
+    id: 'content',
+    name: 'Content Agent',
+    description: 'AI content & image generation',
+    icon: FaFileAlt,
+    gradient: 'from-green-400 to-emerald-500',
+    color: 'green',
+  },
+  {
+    id: 'visual',
+    name: 'Visual Agent',
+    description: 'AI image analysis & tagging',
+    icon: FaImages,
+    gradient: 'from-indigo-400 to-purple-500',
+    color: 'indigo',
+  },
+  {
+    id: 'quiz',
+    name: 'Quiz Agent',
+    description: 'AI quiz generation from content',
+    icon: FaQuestionCircle,
+    gradient: 'from-yellow-400 to-orange-500',
+    color: 'yellow',
+  },
+];
+
 export default function VeraPage() {
   const chatFunctionUrl = "https://askchatbot-el2jwxb5bq-uc.a.run.app";
+  const searchParams = useSearchParams();
+  const agentParam = searchParams.get('agent');
   
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -70,6 +126,16 @@ export default function VeraPage() {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [chatHistory, streamingText]);
+
+  // Handle agent query parameter
+  useEffect(() => {
+    if (agentParam) {
+      const agent = AGENTS.find(a => a.id === agentParam);
+      if (agent) {
+        setSelectedAgent(agent);
+      }
+    }
+  }, [agentParam]);
 
   // Track scroll position to show/hide suggestions
   useEffect(() => {
@@ -2373,7 +2439,7 @@ export default function VeraPage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6 }}
-                    className="hero-logo"
+                    className="hero-logo text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500"
                   >
                     VERA
                   </motion.h1>
@@ -2444,9 +2510,11 @@ export default function VeraPage() {
                               whileHover={{ scale: 1.1 }}
                               className="flex-shrink-0 mt-1"
                             >
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center shadow-md">
-                                <FaRobot className="text-white text-sm" />
-                              </div>
+                              <VeraLogo 
+                                size="medium" 
+                                showText={false} 
+                                variant="avatar"
+                              />
                             </motion.div>
                           )}
                           {msg.role === 'error' && (
@@ -2454,8 +2522,8 @@ export default function VeraPage() {
                               whileHover={{ scale: 1.1 }}
                               className="flex-shrink-0 mt-1"
                             >
-                              <div className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center">
-                                <FaRobot className="text-white text-sm" />
+                              <div className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center shadow-md">
+                                <span className="text-white text-xs font-bold">!</span>
                               </div>
                             </motion.div>
                           )}

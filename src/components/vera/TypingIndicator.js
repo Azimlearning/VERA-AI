@@ -2,7 +2,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { FaRobot } from 'react-icons/fa';
+import VeraLogo from '../brand/VeraLogo';
 
 export default function TypingIndicator() {
   return (
@@ -12,9 +12,11 @@ export default function TypingIndicator() {
         transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
         className="flex-shrink-0 mt-1"
       >
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center shadow-md">
-          <FaRobot className="text-white text-sm" />
-        </div>
+        <VeraLogo 
+          size="medium" 
+          showText={false} 
+          variant="avatar"
+        />
       </motion.div>
       <div className="flex flex-col items-start">
         <div className="bg-white text-gray-900 p-4 rounded-2xl rounded-bl-md shadow-sm border border-gray-200">

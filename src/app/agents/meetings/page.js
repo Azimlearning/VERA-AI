@@ -8,7 +8,6 @@ import TryPageLayout from '../../../components/agents/TryPageLayout';
 import TranscriptInput from '../../../components/agents/meetings/TranscriptInput';
 import MeetingAnalysis from '../../../components/agents/meetings/MeetingAnalysis';
 import ResultsDisplay from '../../../components/agents/ResultsDisplay';
-import FullVersionCTA from '../../../components/agents/FullVersionCTA';
 import { FaUsers } from 'react-icons/fa';
 
 export default function MeetingsAgentTryPage() {
@@ -136,7 +135,6 @@ export default function MeetingsAgentTryPage() {
       agentColor="purple"
       agentGradient="from-purple-400 to-pink-500"
       description="AI-powered meeting analysis. Upload or paste meeting transcripts to extract action items, identify decisions, and detect alignment issues."
-      fullVersionLink="/meetx"
     >
       <div className="space-y-8">
         {/* Transcript Input Section */}
@@ -163,12 +161,6 @@ export default function MeetingsAgentTryPage() {
             )}
           </ResultsDisplay>
         )}
-
-        {/* Full Version CTA */}
-        <FullVersionCTA
-          href="/meetx"
-          agentName="Meetings Agent"
-        />
       </div>
     </TryPageLayout>
   );

@@ -141,7 +141,7 @@ export default function AgentPickerButton({ selectedAgent, onAgentSelect, pillSt
                       <FaRobot className="text-gray-600" />
                     </div>
                     <div className="flex-1">
-                      <div className="font-semibold text-gray-900">Vera (Default)</div>
+                      <div className="font-semibold text-gray-900"><span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500">Vera</span> (Default)</div>
                       <div className="text-xs text-gray-600">General AI assistant with RAG</div>
                     </div>
                     {!selectedAgent && (
