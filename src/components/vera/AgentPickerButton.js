@@ -58,21 +58,44 @@ const AGENTS = [
   },
 ];
 
-export default function AgentPickerButton({ selectedAgent, onAgentSelect }) {
+export default function AgentPickerButton({ selectedAgent, onAgentSelect, pillStyle = false }) {
   const [isOpen, setIsOpen] = useState(false);
+
+  // Find the agent name and icon to display
+  const displayName = selectedAgent ? selectedAgent.name : 'Vera';
+  const foundAgent = selectedAgent ? AGENTS.find(a => a.id === selectedAgent.id) : null;
+  const IconComponent = foundAgent ? foundAgent.icon : FaRobot;
 
   return (
     <div className="relative">
-      <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => setIsOpen(!isOpen)}
-        className="tool-btn"
-        title={selectedAgent ? `Selected: ${selectedAgent.name}` : 'Select AI Agent'}
-      >
-        <span className="plus-icon">+</span>
-        <span>Tools</span>
-      </motion.button>
+      {pillStyle ? (
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setIsOpen(!isOpen)}
+          className="agent-pill-btn"
+          title={selectedAgent ? `Selected: ${selectedAgent.name}` : 'Select AI Agent'}
+        >
+          <span className="agent-icon">
+            <IconComponent style={{ fontSize: '14px' }} />
+          </span>
+          <span className="agent-name">{displayName} (Default)</span>
+          <svg className="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M6 9l6 6 6-6"></path>
+          </svg>
+        </motion.button>
+      ) : (
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setIsOpen(!isOpen)}
+          className="tool-btn"
+          title={selectedAgent ? `Selected: ${selectedAgent.name}` : 'Select AI Agent'}
+        >
+          <span className="plus-icon">+</span>
+          <span>Tools</span>
+        </motion.button>
+      )}
 
       {/* Agent Picker Dropdown */}
       <AnimatePresence>
@@ -89,7 +112,7 @@ export default function AgentPickerButton({ selectedAgent, onAgentSelect }) {
               initial={{ opacity: 0, y: -10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
-              className="absolute bottom-full left-0 mb-2 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden"
+              className={`absolute ${pillStyle ? 'bottom-full right-0 mb-2' : 'bottom-full left-0 mb-2'} w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden`}
             >
               <div className="p-3 border-b border-gray-200 flex items-center justify-between bg-gray-50">
                 <h3 className="text-sm font-semibold text-gray-900">Select AI Agent</h3>

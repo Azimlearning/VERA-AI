@@ -46,3 +46,16 @@ python/SETUP_AUTH.md
 test-hf-api-direct.ps1
 *.json.key
 *firebase-key*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+firebase-debug.log
+*.log

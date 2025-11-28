@@ -1,0 +1,41 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // NOTE: This app uses sessionStorage-based authentication, not Firebase Auth
+    // These rules allow access without Firebase Auth. For production, consider
+    // implementing proper Firebase Authentication for better security.
+    
+    // Meeting files - allow read/write for all
+    match /meetingFiles/{fileName} {
+      allow read, write: if true;
+    }
+    
+    // MeetX files - allow read/write for all
+    match /meetxFiles/{fileName} {
+      allow read, write: if true;
+    }
+    
+    // Upstream gallery images - allow read for all, write for all
+    match /upstreamGallery/{allPaths=**} {
+      allow read, write: if true;
+    }
+    
+    // Story writeups - allow read/write for all
+    match /writeUps/{fileName} {
+      allow read, write: if true;
+    }
+    
+    // Story visuals - allow read/write for all
+    match /visuals/{fileName} {
+      allow read, write: if true;
+    }
+    
+    // Default: allow access to all other paths
+    // For production, you may want to restrict this
+    match /{allPaths=**} {
+      allow read, write: if true;
+    }
+  }
+}
+

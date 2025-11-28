@@ -10,7 +10,6 @@ import ImageAnalysis from '../../../components/agents/visual/ImageAnalysis';
 import ResultsDisplay from '../../../components/agents/ResultsDisplay';
 import FullVersionCTA from '../../../components/agents/FullVersionCTA';
 import { FaImages } from 'react-icons/fa';
-import { generateText, OPENROUTER_MODELS } from '../../../lib/openRouterClient';
 
 export default function VisualAgentTryPage() {
   const [imageUrl, setImageUrl] = useState(null);
@@ -37,57 +36,26 @@ export default function VisualAgentTryPage() {
       // For now, we'll use the analyzeImage Cloud Function which expects a URL
       // We'll need to handle data URLs differently
       
+      // For data URLs, we need to upload to a temporary location first
+      // OR use the Cloud Function API which can handle data URLs
+      // For now, we'll use the Cloud Function API for all cases
+      let finalImageUrl = imageUrlToAnalyze;
+      
+      // If it's a data URL, we need to handle it differently
+      // The Cloud Function expects a URL, so we might need to upload it first
+      // For simplicity, let's use the analyzeImage Cloud Function which should handle this
       if (imageUrlToAnalyze.startsWith('data:')) {
-        // For try page, we can analyze directly using OpenRouter with image input
-        const analysisPrompt = `Analyze this image and provide:
-1. A detailed description
-2. Relevant tags (as a JSON array)
-3. Suggested categories
-4. Any data or text extracted from the image
-
-Return the response as JSON with this structure:
-{
-  "description": "Detailed description of the image",
-  "tags": ["tag1", "tag2", ...],
-  "categories": ["category1", "category2"],
-  "extractedData": "Any text or data visible in the image"
-}`;
-
-        const analysisResult = await generateText({
-          prompt: analysisPrompt,
-          model: OPENROUTER_MODELS.image.primary,
-          images: [imageUrlToAnalyze],
-          jsonMode: true
-        });
-
-        let parsedResults;
-        try {
-          const cleanedResult = analysisResult
-            .replace(/```json\n?/g, '')
-            .replace(/```\n?/g, '')
-            .trim();
-          parsedResults = JSON.parse(cleanedResult);
-        } catch (parseError) {
-          parsedResults = {
-            description: analysisResult,
-            tags: [],
-            categories: [],
-            extractedData: null
-          };
-        }
-
-        setResults(parsedResults);
-      } else {
-        // Use existing Cloud Function
-        const analyzeImageUrl = 'https://analyzeimage-el2jwxb5bq-uc.a.run.app';
-        
-        const response = await fetch(analyzeImageUrl, {
+        // Try to use the Cloud Function - it may need to handle data URLs
+        // If not supported, we'll need to upload first
+        // For now, let's use the API route which will handle the upload
+        const response = await fetch('/api/analyzeImage', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            imageUrl: finalImageUrl
+            imageUrl: imageUrlToAnalyze,
+            mode: 'single'
           }),
         });
 
@@ -98,12 +66,42 @@ Return the response as JSON with this structure:
 
         const data = await response.json();
 
-        if (data.status === 'ok') {
+        if (data.success && data.analysis) {
           setResults({
-            tags: data.tags || [],
-            description: data.description || '',
-            categories: data.category ? [data.category] : [],
-            extractedData: null
+            tags: data.analysis.tags || [],
+            description: data.analysis.description || '',
+            categories: data.analysis.category ? [data.analysis.category] : [],
+            extractedData: data.analysis.ocrText || null
+          });
+        } else {
+          throw new Error(data.error || 'Failed to analyze image');
+        }
+      } else {
+        // Use Cloud Function API for regular URLs
+        const response = await fetch('/api/analyzeImage', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            imageUrl: finalImageUrl,
+            mode: 'single'
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Failed to analyze image' }));
+          throw new Error(errorData.error || `Server error: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.success && data.analysis) {
+          setResults({
+            tags: data.analysis.tags || [],
+            description: data.analysis.description || '',
+            categories: data.analysis.category ? [data.analysis.category] : [],
+            extractedData: data.analysis.ocrText || null
           });
         } else {
           throw new Error(data.error || 'Failed to analyze image');

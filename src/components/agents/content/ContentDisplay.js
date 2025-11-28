@@ -43,33 +43,14 @@ export default function ContentDisplay({ content, imageUrl, loading }) {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Generated Content */}
+    <div className="space-y-8">
+      {/* Generated Content - Clean Document Style */}
       {content && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              <FaFileAlt className="text-green-600" />
-              Generated Content
-            </h4>
-            <button
-              onClick={handleDownloadContent}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
-            >
-              <FaDownload />
-              <span>Download</span>
-            </button>
-          </div>
-          <div className="bg-white rounded-lg p-6 border border-gray-200 max-h-96 overflow-y-auto">
-            <pre className="whitespace-pre-wrap font-sans text-gray-800">
-              {content}
-            </pre>
-          </div>
-        </motion.div>
+        <div className="prose prose-lg max-w-none">
+          <pre className="whitespace-pre-wrap font-sans text-gray-800 leading-relaxed bg-transparent p-0 border-0">
+            {content}
+          </pre>
+        </div>
       )}
 
       {/* Generated Image */}
@@ -78,18 +59,18 @@ export default function ContentDisplay({ content, imageUrl, loading }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-white rounded-xl p-6 border border-gray-200"
+          className="bg-gray-50 rounded-lg p-6 border border-gray-200"
         >
           <div className="flex items-center justify-between mb-4">
-            <h4 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <FaImage className="text-green-600" />
               Generated Image
             </h4>
             <button
               onClick={handleDownloadImage}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+              className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
             >
-              <FaDownload />
+              <FaDownload className="w-3 h-3" />
               <span>Download</span>
             </button>
           </div>

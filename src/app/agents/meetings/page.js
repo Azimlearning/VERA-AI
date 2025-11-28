@@ -10,18 +10,37 @@ import MeetingAnalysis from '../../../components/agents/meetings/MeetingAnalysis
 import ResultsDisplay from '../../../components/agents/ResultsDisplay';
 import FullVersionCTA from '../../../components/agents/FullVersionCTA';
 import { FaUsers } from 'react-icons/fa';
-import { generateText, OPENROUTER_MODELS } from '../../../lib/openRouterClient';
 
 export default function MeetingsAgentTryPage() {
   const [transcript, setTranscript] = useState(null);
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [meetingTitle, setMeetingTitle] = useState(null);
 
   const handleTranscriptLoaded = (loadedTranscript) => {
     setTranscript(loadedTranscript);
     setResults(null);
     setError(null);
+    
+    // Extract title from transcript if possible
+    const lines = loadedTranscript.split('\n').filter(l => l.trim());
+    if (lines.length > 0) {
+      const firstLine = lines[0].trim();
+      // If first line looks like a title (short, no punctuation at end, or contains keywords)
+      if (firstLine.length < 100 && (
+        firstLine.toLowerCase().includes('meeting') ||
+        firstLine.toLowerCase().includes('notes') ||
+        firstLine.toLowerCase().includes('transcript') ||
+        !firstLine.match(/[.!?]$/)
+      )) {
+        setMeetingTitle(firstLine);
+      } else {
+        setMeetingTitle(loadedTranscript.substring(0, 50).trim());
+      }
+    } else {
+      setMeetingTitle(loadedTranscript.substring(0, 50).trim());
+    }
   };
 
   const handleAnalyze = async (transcriptToAnalyze) => {
@@ -30,69 +49,57 @@ export default function MeetingsAgentTryPage() {
     setResults(null);
 
     try {
-      // Prepare the analysis prompt
-      const analysisPrompt = `You are an expert meeting analyst. Analyze the following meeting transcript and extract key information.
-
-Meeting Transcript:
-${transcriptToAnalyze}
-
-Please provide a comprehensive analysis in JSON format with the following structure:
-{
-  "summary": "A concise summary of the meeting (2-3 paragraphs)",
-  "decisions": ["List of key decisions made during the meeting"],
-  "actionItems": [
-    {
-      "task": "Task description",
-      "owner": "Owner name or null if not mentioned",
-      "dueDate": "Due date or null if not mentioned",
-      "status": "Status or null if not mentioned"
-    }
-  ],
-  "zombieTasks": ["List of action items missing owner or due date"],
-  "alignmentWarnings": [
-    {
-      "type": "Warning type (e.g., 'Conflict', 'Contradiction')",
-      "message": "Detailed warning message"
-    }
-  ]
-}
-
-Focus on:
-1. Clear, actionable summary
-2. All decisions and outcomes
-3. Complete action items with owners and due dates
-4. Identify zombie tasks (missing critical info)
-5. Check for any contradictions or alignment issues
-
-If information is missing, use null. Be thorough and accurate.`;
-
-      // Call OpenRouter API
-      const analysisResult = await generateText({
-        prompt: analysisPrompt,
-        model: OPENROUTER_MODELS.textOutput.primary,
-        jsonMode: true
-      });
-
-      // Parse the JSON response
-      let parsedResults;
-      try {
-        const cleanedResult = analysisResult
-          .replace(/```json\n?/g, '')
-          .replace(/```\n?/g, '')
-          .trim();
-        parsedResults = JSON.parse(cleanedResult);
-      } catch (parseError) {
-        // If JSON parsing fails, create a basic structure
-        parsedResults = {
-          summary: analysisResult,
-          decisions: [],
-          actionItems: [],
-          zombieTasks: [],
-          alignmentWarnings: []
-        };
+      // Extract title from transcript if not already set
+      let title = meetingTitle;
+      if (!title) {
+        const lines = transcriptToAnalyze.split('\n').filter(l => l.trim());
+        if (lines.length > 0) {
+          const firstLine = lines[0].trim();
+          if (firstLine.length < 100 && (
+            firstLine.toLowerCase().includes('meeting') ||
+            firstLine.toLowerCase().includes('notes') ||
+            firstLine.toLowerCase().includes('transcript') ||
+            !firstLine.match(/[.!?]$/)
+          )) {
+            title = firstLine;
+          } else {
+            title = transcriptToAnalyze.substring(0, 50).trim();
+          }
+        } else {
+          title = transcriptToAnalyze.substring(0, 50).trim();
+        }
       }
 
-      setResults(parsedResults);
+      // Call Cloud Function API for meeting analysis with RAG
+      const response = await fetch('/api/analyzeMeeting', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: transcriptToAnalyze,
+          title: title
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to analyze meeting' }));
+        throw new Error(errorData.error || errorData.message || `Server error: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.analysis) {
+        // Store title with results for save to KB functionality
+        setResults({
+          ...data.analysis,
+          _meetingTitle: title,
+          _meetingContent: transcriptToAnalyze
+        });
+        setMeetingTitle(title);
+      } else {
+        throw new Error(data.error || 'Failed to analyze meeting');
+      }
     } catch (err) {
       console.error('Analysis error:', err);
       setError(err.message || 'Failed to analyze meeting. Please try again.');
@@ -147,7 +154,13 @@ If information is missing, use null. Be thorough and accurate.`;
             onDownload={handleDownload}
             downloadLabel="Download Analysis"
           >
-            {results && <MeetingAnalysis results={results} />}
+            {results && (
+              <MeetingAnalysis 
+                results={results} 
+                meetingTitle={results._meetingTitle || meetingTitle}
+                meetingContent={results._meetingContent || transcript}
+              />
+            )}
           </ResultsDisplay>
         )}
 

@@ -4,6 +4,13 @@ const { generateWithFallback } = require("./aiHelper");
 const { generatePodcastAudio } = require("./podcastTTS");
 const { ChatbotRAGRetriever } = require("./chatbotRAGRetriever");
 const { sanitizePromptInput, detectPromptInjection, buildSecurityNotice } = require("./promptSecurity");
+const { buildPrompt, buildDomainContext, loadPromptFromFile } = require("./promptTemplates");
+const { formatRAGContext, buildJSONSchemaSpec } = require("./promptHelpers");
+
+// Add this function definition
+function createRequestId(prefix = 'pod') {
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+}
 
 /**
  * Generates a podcast script based on a topic and optional context.
@@ -104,7 +111,7 @@ function createGeneratePodcastHandler(geminiApiKey, openRouterApiKey) {
             console.log(`${logPrefix}   Content preview: ${doc.content?.substring(0, 100) || 'No content'}...`);
           });
           
-          knowledgeContext = ragRetriever.buildContextString(retrievedDocs, { maxTokens: 1200 }); // Keep within token budget
+          knowledgeContext = ragRetriever.buildContextString(retrievedDocs, { maxTokens: 2500 }); // Increased for podcast generation to provide more context
           ragUsed = true;
           
           ragMetadata.documentsFound = retrievedDocs.length;
@@ -134,63 +141,92 @@ function createGeneratePodcastHandler(geminiApiKey, openRouterApiKey) {
         // Continue without RAG - use static context as fallback
       }
 
-      // Build the podcast generation prompt
-      const systemicShiftsContext = `
-PETRONAS Upstream is undergoing a transformation through "Systemic Shifts" - strategic changes in mindset, behavior, and operations to achieve PETRONAS 2.0 vision. Key areas include:
-- Operational Excellence (Systemic Shift #8: Operate it Right)
-- Digital Transformation
-- Sustainability and Decarbonisation
-- Innovation and Technology
-- People and Culture
-- Safety and Risk Management
-`;
+      // Format RAG context
+      const { context: formattedKnowledgeContext } = formatRAGContext(retrievedDocs || [], {
+        maxTokens: 1200,
+        includeSimilarity: true,
+        includeSource: true
+      });
 
-      // Build prompt with RAG context prioritized
-      const knowledgeSection = knowledgeContext
-        ? `### Knowledge Base (Primary Facts)\n${knowledgeContext}`
-        : '### Knowledge Base (Primary Facts)\nNo relevant knowledge base passages were retrieved. Lean on the systemic context below.';
+      // Define podcast JSON schema
+      const podcastJSONSchema = {
+        type: "object",
+        required: ["outline", "script", "sections"],
+        properties: {
+          outline: { type: "string", description: "Episode outline summarizing the flow" },
+          script: { type: "string", description: "Full conversational script with HOST:/GUEST: markers" },
+          sections: {
+            type: "array",
+            description: "Array of section objects (5-7 sections required)",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                content: { type: "string" },
+                qa: {
+                  type: "array",
+                  description: "3-5 Q&A pairs per section",
+                  items: {
+                    type: "object",
+                    properties: {
+                      question: { type: "string" },
+                      answer: { type: "string" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      };
 
-      const userContextSection = sanitizedContext
-        ? `### Additional Context From Requestor\n${sanitizedContext}`
+      // Format retrieved docs for template
+      const retrievedDocsText = retrievedDocs && retrievedDocs.length > 0
+        ? retrievedDocs.map((doc, idx) => {
+            const score = doc.similarity ? ` (similarity: ${(doc.similarity * 100).toFixed(1)}%)` : '';
+            return `Document ${idx + 1}: "${doc.title}"${score}`;
+          }).join('\n')
         : '';
 
-      const examplePodcastJson = `{
-  "outline": "Intro → Theme → Case Study → Conclusion",
-  "script": "HOST: Welcome back...\\nGUEST: Thanks for having me...",
-  "sections": [
-    {
-      "title": "Setting the Stage",
-      "content": "HOST and GUEST discuss the shift objectives...",
-      "qa": [
-        {
-          "question": "HOST: Why does this shift matter now?",
-          "answer": "GUEST: It unlocks advantaged barrels by..."
-        }
-      ]
-    }
-  ]
-}`;
-
-      const promptSections = [
-        `### Role
-You are creating an educational podcast script for PETRONAS Upstream employees about "${sanitizedTopic}". Maintain an engaging, professional tone suitable for internal communications.`,
-        knowledgeSection,
-        `### Systemic Shifts Overview
-${systemicShiftsContext}`,
-        userContextSection,
-        securityNotice ? `### Security Notice\n${securityNotice}` : '',
-        `### Output Requirements
-1. Provide an "outline" summarizing the episode.
-2. Provide a conversational "script" with HOST:/GUEST: markers.
-3. Provide "sections" (3-5) each with title, content, and 2-3 Q&A pairs.
-4. Keep runtime near 12-15 minutes; highlight practical examples and PETRONAS references.`,
-        `### Example JSON Structure
-${examplePodcastJson}`,
-        `### Response Format
-Return strict JSON following the structure shown above.`
-      ].filter(Boolean);
-
-      const podcastPrompt = promptSections.join('\n\n');
+      // Load podcast prompt from file
+      let podcastPrompt = loadPromptFromFile('podcast-prompt.txt', {
+        securityNotice: securityNotice ? `<security_notice>\n${securityNotice}\n</security_notice>` : '',
+        ragContext: formattedKnowledgeContext || knowledgeContext || '',
+        retrievedDocs: retrievedDocsText,
+        outputFormat: buildJSONSchemaSpec(podcastJSONSchema),
+        topic: sanitizedTopic,
+        additionalContext: sanitizedContext || ''
+      });
+      
+      // Fallback to buildPrompt if file loading fails
+      if (!podcastPrompt) {
+        podcastPrompt = buildPrompt({
+          role: "Podcast Script Creator",
+          roleDescription: `You are creating an educational podcast script for PETRONAS Upstream employees about "${sanitizedTopic}". Your task is to create engaging, informative content that helps employees understand and engage with organizational initiatives.`,
+          roleContext: "You create content for internal communications, maintaining an engaging, professional tone suitable for employee education and engagement.",
+          domainContext: true,
+          additionalDomainContext: buildDomainContext() + "\n\nSystemic Shifts Areas:\n- Operational Excellence (Systemic Shift #8: Operate it Right)\n- Digital Transformation\n- Sustainability and Decarbonisation\n- Innovation and Technology\n- People and Culture\n- Safety and Risk Management",
+          securityNotice: securityNotice || undefined,
+          knowledgeBaseContext: formattedKnowledgeContext || knowledgeContext,
+          retrievedDocs: retrievedDocs || [],
+          knowledgeBaseOptions: {
+            isPrimarySource: true,
+            showSimilarityScores: true,
+            includeFallback: true
+          },
+          instructions: [
+            "Use the knowledge base content as the PRIMARY source of facts and information.",
+            "Create a comprehensive, detailed script with thorough explanations and practical examples.",
+            "Provide 5-7 sections, each with: (1) Descriptive title, (2) Detailed content with multiple dialogue exchanges, (3) 3-5 Q&A pairs per section with substantial answers (3-4 sentences each).",
+            "Length Requirements: Minimum 2,000-2,500 words, 10,000-12,000 characters. Target runtime: 12-15 minutes when spoken.",
+            "Include detailed explanations, practical examples, real-world applications, and PETRONAS-specific references.",
+            "Highlight connections to PETRONAS 2.0 goals, Key Shifts, and organizational mindsets.",
+            "Maintain engaging, conversational tone between HOST and GUEST throughout."
+          ],
+          outputFormat: buildJSONSchemaSpec(podcastJSONSchema),
+          task: `Create a comprehensive podcast script about "${sanitizedTopic}".${sanitizedContext ? `\n\nAdditional Context:\n${sanitizedContext}` : ''}\n\nGenerate the complete podcast script following the format specified above.`
+        });
+      }
 
       // Log prompt details for debugging
       console.log(`${logPrefix} ===== PROMPT DETAILS =====`);
@@ -245,6 +281,31 @@ Return strict JSON following the structure shown above.`
           qa: []
         }];
       }
+
+      // Validate script length and log metrics
+      const scriptLength = podcastData.script.length;
+      const wordCount = podcastData.script.split(/\s+/).filter(word => word.length > 0).length;
+      // Estimate duration: average speaking rate is ~150 words per minute
+      const estimatedMinutes = Math.round((wordCount / 150) * 10) / 10;
+      const minRequiredChars = 8000; // Minimum for ~12 minutes
+      const minRequiredWords = 2000; // Minimum for ~12 minutes
+      
+      console.log(`${logPrefix} ===== SCRIPT VALIDATION =====`);
+      console.log(`${logPrefix} Script length: ${scriptLength} characters`);
+      console.log(`${logPrefix} Word count: ${wordCount} words`);
+      console.log(`${logPrefix} Estimated duration: ~${estimatedMinutes} minutes`);
+      console.log(`${logPrefix} Sections: ${podcastData.sections.length}`);
+      
+      if (scriptLength < minRequiredChars) {
+        console.warn(`${logPrefix} ⚠️  WARNING: Script is shorter than recommended minimum`);
+        console.warn(`${logPrefix}   - Current: ${scriptLength} chars (target: ${minRequiredChars}+)`);
+        console.warn(`${logPrefix}   - Current: ${wordCount} words (target: ${minRequiredWords}+)`);
+        console.warn(`${logPrefix}   - Estimated duration: ${estimatedMinutes} min (target: 12-15 min)`);
+        console.warn(`${logPrefix}   - The AI model may not have generated enough content. Consider regenerating.`);
+      } else {
+        console.log(`${logPrefix} ✅ Script length meets minimum requirements`);
+      }
+      console.log(`${logPrefix} ===== END SCRIPT VALIDATION =====`);
 
       console.log(`${logPrefix} Successfully generated podcast with ${podcastData.sections.length} sections`);
 

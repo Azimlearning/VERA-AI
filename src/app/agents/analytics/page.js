@@ -10,7 +10,6 @@ import AnalysisResults from '../../../components/agents/analytics/AnalysisResult
 import ResultsDisplay from '../../../components/agents/ResultsDisplay';
 import FullVersionCTA from '../../../components/agents/FullVersionCTA';
 import { FaChartLine } from 'react-icons/fa';
-import { generateText, OPENROUTER_MODELS } from '../../../lib/openRouterClient';
 
 export default function AnalyticsAgentTryPage() {
   const [data, setData] = useState(null);
@@ -30,56 +29,24 @@ export default function AnalyticsAgentTryPage() {
     setResults(null);
 
     try {
-      // Prepare the analysis prompt
-      const analysisPrompt = `You are an expert data analyst. Analyze the following data and provide comprehensive insights.
-
-Data:
-${typeof dataToAnalyze === 'string' ? dataToAnalyze : JSON.stringify(dataToAnalyze, null, 2)}
-
-Please provide a detailed analysis in JSON format with the following structure:
-{
-  "insights": "A comprehensive summary of key findings and patterns in the data (2-3 paragraphs)",
-  "trends": "Analysis of trends, patterns, and changes over time (2-3 bullet points)",
-  "anomalies": ["List any unusual patterns or outliers detected"],
-  "recommendations": ["Actionable recommendations based on the analysis"],
-  "summary": "A brief executive summary (1 paragraph)"
-}
-
-Focus on:
-1. Key metrics and their significance
-2. Trends and patterns
-3. Anomalies or outliers
-4. Actionable insights
-5. Business recommendations
-
-Be specific, data-driven, and practical in your analysis.`;
-
-      // Call OpenRouter API
-      const analysisResult = await generateText({
-        prompt: analysisPrompt,
-        model: OPENROUTER_MODELS.textOutput.primary,
-        jsonMode: true
+      // Call backend function to get RAG context and analyze data
+      const response = await fetch('/api/analyzeData', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: typeof dataToAnalyze === 'string' ? dataToAnalyze : JSON.stringify(dataToAnalyze, null, 2),
+          dataType: dataType
+        })
       });
 
-      // Parse the JSON response
-      let parsedResults;
-      try {
-        // Clean up the response (remove markdown code blocks if present)
-        const cleanedResult = analysisResult
-          .replace(/```json\n?/g, '')
-          .replace(/```\n?/g, '')
-          .trim();
-        parsedResults = JSON.parse(cleanedResult);
-      } catch (parseError) {
-        // If JSON parsing fails, treat as text
-        parsedResults = {
-          insights: analysisResult,
-          trends: null,
-          anomalies: [],
-          recommendations: [],
-          summary: analysisResult.substring(0, 200)
-        };
+      if (!response.ok) {
+        throw new Error('Failed to analyze data');
       }
+
+      const result = await response.json();
+      const parsedResults = result.analysis;
 
       // Generate simple chart data if we have time series data
       let charts = [];

@@ -89,10 +89,10 @@ else:
 _pipeline: Optional[StableDiffusionPipeline] = None
 _use_api_fallback = False  # Flag to use API instead of local model
 
-# Initialize RAG style retriever
+# Initialize RAG style retriever with Firestore client for KB queries
 try:
-    style_retriever = ImageStyleRetriever()
-    logger.info("RAG style retriever initialized")
+    style_retriever = ImageStyleRetriever(db=db)  # Pass Firestore client for KB queries
+    logger.info("RAG style retriever initialized with Firestore KB support")
 except Exception as e:
     logger.warning(f"Failed to initialize RAG retriever: {e}. Continuing without RAG enhancement.")
     style_retriever = None

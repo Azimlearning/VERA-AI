@@ -80,7 +80,6 @@ export default function Header() {
           href: '/nexushub',
           subItems: [
             { name: 'Overview', href: '/nexushub' },
-            { name: 'Collaterals', href: '/nexushub/collaterals' },
             { name: 'UpstreamGallery', href: '/nexushub/upg' },
             { name: 'Systemic Shifts Dropbox', href: '/nexushub/dropbox' },
           ]
@@ -93,7 +92,6 @@ export default function Header() {
             { name: 'Podcast', href: '/ulearn/podcast' },
           ]
         },
-        { name: 'Submit Stories', href: '/submit-story' },
       ]
     },
   ];

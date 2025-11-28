@@ -7,7 +7,6 @@
     "node": "20"
   },
   "scripts": {
-    "start": "functions-framework --target=generateImageHf --signature-type=http",
     "lint": "echo \"No linter configured\""
   },
   "dependencies": {

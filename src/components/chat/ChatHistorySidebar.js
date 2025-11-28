@@ -8,7 +8,7 @@ import { db } from '../../lib/firebase';
 import { collection, getDocs, query, orderBy, limit, deleteDoc, doc } from 'firebase/firestore';
 
 // --- NOW accepts an 'onNewChat' prop and 'onLoadSession' callback ---
-export default function ChatHistorySidebar({ onNewChat, onLoadSession, currentSessionId }) {
+export default function ChatHistorySidebar({ onNewChat, onLoadSession, currentSessionId, selectedAgent = null }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -189,7 +189,14 @@ export default function ChatHistorySidebar({ onNewChat, onLoadSession, currentSe
           </Link>
           
           {/* AI Agents */}
-          <Link href="/agents" className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors">
+          <Link 
+            href="/agents" 
+            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors sidebar-nav-link ${
+              selectedAgent 
+                ? 'active-agent text-teal-400' 
+                : 'text-gray-300 hover:text-white hover:bg-gray-700'
+            }`}
+          >
             <FaRobot className="w-4 h-4" />
             <span>AI Agents</span>
           </Link>

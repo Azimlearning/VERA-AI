@@ -3,10 +3,7 @@
 
 'use client';
 
-import { motion } from 'framer-motion';
-import { FaPodcast, FaPlay, FaDownload } from 'react-icons/fa';
-
-export default function ScriptDisplay({ script, audioUrl, loading }) {
+export default function ScriptDisplay({ script, audioUrl, loading, onDownloadAudio }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -19,102 +16,116 @@ export default function ScriptDisplay({ script, audioUrl, loading }) {
     return null;
   }
 
-  const handleDownloadScript = () => {
-    const content = typeof script === 'string' ? script : JSON.stringify(script, null, 2);
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `podcast-script-${Date.now()}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  // Format script for display
-  const formatScript = (scriptData) => {
+  // Parse script and format with speaker labels
+  const parseScriptWithSpeakers = (scriptData) => {
+    let scriptText = '';
+    
+    // Extract script text
     if (typeof scriptData === 'string') {
-      return scriptData;
-    }
-
-    let formatted = '';
-    
-    if (scriptData.outline) {
-      formatted += `OUTLINE:\n${scriptData.outline}\n\n`;
-    }
-    
-    if (scriptData.script) {
-      formatted += `SCRIPT:\n${scriptData.script}\n\n`;
-    }
-    
-    if (scriptData.sections && Array.isArray(scriptData.sections)) {
-      formatted += 'SECTIONS:\n\n';
-      scriptData.sections.forEach((section, idx) => {
-        formatted += `--- Section ${idx + 1}: ${section.title || 'Untitled'} ---\n`;
+      scriptText = scriptData;
+    } else if (scriptData.script) {
+      scriptText = scriptData.script;
+    } else if (scriptData.sections && Array.isArray(scriptData.sections)) {
+      // Build script from sections
+      scriptText = scriptData.sections.map(section => {
+        let sectionText = '';
         if (section.content) {
-          formatted += `${section.content}\n\n`;
+          sectionText += section.content + '\n\n';
         }
         if (section.qa && Array.isArray(section.qa)) {
-          section.qa.forEach((qa, qIdx) => {
-            formatted += `Q${qIdx + 1}: ${qa.question || ''}\n`;
-            formatted += `A${qIdx + 1}: ${qa.answer || ''}\n\n`;
+          section.qa.forEach(qa => {
+            if (qa.question) sectionText += qa.question + '\n';
+            if (qa.answer) sectionText += qa.answer + '\n\n';
           });
         }
-        formatted += '\n';
+        return sectionText;
+      }).join('\n');
+    } else {
+      scriptText = JSON.stringify(scriptData, null, 2);
+    }
+
+    // Split by HOST: and GUEST: markers
+    const lines = scriptText.split('\n');
+    const parsedLines = [];
+    let currentSpeaker = null;
+    let currentText = [];
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      
+      // Check for speaker markers
+      const hostMatch = trimmed.match(/^HOST\s*:?\s*(.*)/i);
+      const guestMatch = trimmed.match(/^GUEST\s*:?\s*(.*)/i);
+      
+      if (hostMatch) {
+        // Save previous segment
+        if (currentSpeaker && currentText.length > 0) {
+          parsedLines.push({
+            speaker: currentSpeaker,
+            text: currentText.join(' ').trim()
+          });
+        }
+        // Start new HOST segment
+        currentSpeaker = 'HOST';
+        currentText = hostMatch[1].trim() ? [hostMatch[1].trim()] : [];
+      } else if (guestMatch) {
+        // Save previous segment
+        if (currentSpeaker && currentText.length > 0) {
+          parsedLines.push({
+            speaker: currentSpeaker,
+            text: currentText.join(' ').trim()
+          });
+        }
+        // Start new GUEST segment
+        currentSpeaker = 'GUEST';
+        currentText = guestMatch[1].trim() ? [guestMatch[1].trim()] : [];
+      } else if (trimmed.length > 0) {
+        // Continue current speaker's text
+        if (currentSpeaker) {
+          currentText.push(trimmed);
+        } else {
+          // Default to HOST if no speaker marker found yet
+          currentSpeaker = 'HOST';
+          currentText = [trimmed];
+        }
+      }
+    }
+    
+    // Add final segment
+    if (currentSpeaker && currentText.length > 0) {
+      parsedLines.push({
+        speaker: currentSpeaker,
+        text: currentText.join(' ').trim()
       });
     }
 
-    return formatted || JSON.stringify(scriptData, null, 2);
+    // If no speaker markers found, return as plain text
+    if (parsedLines.length === 0 && scriptText.trim().length > 0) {
+      return null; // Will fall back to plain text display
+    }
+
+    return parsedLines;
   };
 
-  const formattedScript = formatScript(script);
+  const scriptLines = parseScriptWithSpeakers(script);
 
   return (
-    <div className="space-y-6">
-      {/* Script Display */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-br from-orange-50 to-red-50 rounded-xl p-6 border border-orange-200"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <FaPodcast className="text-orange-600" />
-            Generated Podcast Script
-          </h4>
-          <button
-            onClick={handleDownloadScript}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm"
-          >
-            <FaDownload />
-            <span>Download Script</span>
-          </button>
-        </div>
-        <div className="bg-white rounded-lg p-6 border border-gray-200 max-h-96 overflow-y-auto">
-          <pre className="whitespace-pre-wrap font-mono text-sm text-gray-800">
-            {formattedScript}
+    <div className="script-body">
+      {scriptLines && scriptLines.length > 0 ? (
+        scriptLines.map((line, idx) => (
+          <p key={idx} className="script-line">
+            <span className={`speaker-label ${line.speaker.toLowerCase()}`}>
+              {line.speaker}:
+            </span>
+            {line.text}
+          </p>
+        ))
+      ) : (
+        <div className="prose prose-lg max-w-none">
+          <pre className="whitespace-pre-wrap font-sans text-gray-800 leading-relaxed bg-transparent p-0 border-0">
+            {typeof script === 'string' ? script : JSON.stringify(script, null, 2)}
           </pre>
         </div>
-      </motion.div>
-
-      {/* Audio Player (if available) */}
-      {audioUrl && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white rounded-xl p-6 border border-gray-200"
-        >
-          <h4 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <FaPlay className="text-orange-600" />
-            Generated Audio
-          </h4>
-          <audio controls className="w-full">
-            <source src={audioUrl} type="audio/mpeg" />
-            Your browser does not support the audio element.
-          </audio>
-        </motion.div>
       )}
     </div>
   );
