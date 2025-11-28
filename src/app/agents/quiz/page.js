@@ -8,7 +8,6 @@ import TryPageLayout from '../../../components/agents/TryPageLayout';
 import ContentInput from '../../../components/agents/quiz/ContentInput';
 import QuizPreview from '../../../components/agents/quiz/QuizPreview';
 import ResultsDisplay from '../../../components/agents/ResultsDisplay';
-import FullVersionCTA from '../../../components/agents/FullVersionCTA';
 import { FaQuestionCircle } from 'react-icons/fa';
 
 export default function QuizAgentTryPage() {
@@ -101,7 +100,6 @@ export default function QuizAgentTryPage() {
       agentColor="pink"
       agentGradient="from-pink-400 to-rose-500"
       description="AI-powered quiz generation. Create quizzes from knowledge base topics or your own content with AI-generated questions and answers."
-      fullVersionLink="/ulearn/quizzes"
     >
       <div className="space-y-8">
         {/* Content Input Section */}
@@ -127,12 +125,6 @@ export default function QuizAgentTryPage() {
             )}
           </ResultsDisplay>
         )}
-
-        {/* Full Version CTA */}
-        <FullVersionCTA
-          href="/ulearn/quizzes"
-          agentName="Quiz Agent"
-        />
       </div>
     </TryPageLayout>
   );

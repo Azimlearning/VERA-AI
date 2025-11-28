@@ -11,6 +11,11 @@ html {
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  
+  /* VERA Brand Colors */
+  --color-brand-teal: #009688;
+  --color-brand-teal-dark: #00796B;
+  --color-brand-teal-light: #4DB6AC;
 }
 
 /* stylelint-disable-next-line */
@@ -44,6 +49,12 @@ body {
 h1, h2, h3, .hero-logo {
   letter-spacing: -0.025em; /* Subtle squeeze makes it look modern */
   font-weight: 600;
+}
+
+/* VERA Brand Typography */
+.font-brand {
+  font-family: var(--font-inter), 'Inter', sans-serif;
+  letter-spacing: -0.03em; /* Tighter spacing for modern, tech feel */
 }
 
 /* 2. Luxury Whitespace for Chat Text */

@@ -8,7 +8,6 @@ import TryPageLayout from '../../../components/agents/TryPageLayout';
 import TopicInput from '../../../components/agents/podcast/TopicInput';
 import ScriptDisplay from '../../../components/agents/podcast/ScriptDisplay';
 import ResultsDisplay from '../../../components/agents/ResultsDisplay';
-import FullVersionCTA from '../../../components/agents/FullVersionCTA';
 import { FaPodcast } from 'react-icons/fa';
 import { generateText, OPENROUTER_MODELS } from '../../../lib/openRouterClient';
 
@@ -97,7 +96,6 @@ export default function PodcastAgentTryPage() {
       agentColor="orange"
       agentGradient="from-orange-400 to-red-500"
       description="AI-powered podcast generation. Select a topic from the knowledge base or provide your own content to generate a formatted talk-style podcast script."
-      fullVersionLink="/ulearn/podcast"
     >
       <div className="space-y-8">
         {/* Topic Input Section */}
@@ -123,12 +121,6 @@ export default function PodcastAgentTryPage() {
             )}
           </ResultsDisplay>
         )}
-
-        {/* Full Version CTA */}
-        <FullVersionCTA
-          href="/ulearn/podcast"
-          agentName="Podcast Agent"
-        />
       </div>
     </TryPageLayout>
   );

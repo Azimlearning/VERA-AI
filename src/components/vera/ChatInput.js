@@ -380,7 +380,7 @@ export default function ChatInput({
             ) : (
               <button className="agent-pill-btn" disabled>
                 <span className="agent-icon">🤖</span>
-                <span className="agent-name">Vera (Default)</span>
+                <span className="agent-name"><span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500">Vera</span> (Default)</span>
               </button>
             )}
             

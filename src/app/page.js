@@ -1,224 +1,211 @@
-// src/app/page.js
-/**
- * About Page - Vera AI Platform
- * 
- * Comprehensive About page covering:
- * - Vera's capabilities and features
- * - How Vera works (technical overview with RAG, knowledge base integration)
- * - Overview of the 6 AI agents
- * - Technology stack and architecture
- * - Use cases and benefits
- */
+"use client";
 
-'use client';
+import UnifiedAppLayout from "../components/layout/UnifiedAppLayout";
+import { useRouter } from "next/navigation";
+import { FaEnvelope, FaChartLine, FaFileAlt, FaImage, FaDatabase, FaBolt, FaShieldAlt, FaCloud, FaRobot, FaUsers, FaPodcast, FaImages, FaQuestionCircle, FaArrowRight, FaBrain } from "react-icons/fa";
+import { motion } from "framer-motion";
+import Link from "next/link";
 
-import Header from '../components/Header';
-import LoadingAnimation from '../components/LoadingAnimation';
-import Footer from '../components/Footer';
-import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { 
-  FaRobot, 
-  FaDatabase, 
-  FaBolt, 
-  FaChartLine, 
-  FaUsers, 
-  FaPodcast, 
-  FaFileAlt, 
-  FaImages,
-  FaQuestionCircle,
-  FaArrowRight,
-  FaCode,
-  FaCloud,
-  FaShieldAlt
-} from 'react-icons/fa';
+export default function Dashboard() {
+  const router = useRouter();
 
-export default function AboutPage() {
-  const agents = [
-    {
-      id: 'analytics',
-      name: 'Analytics Agent',
-      description: 'AI-powered data insights & forecasting. Analyze trends, generate reports, and predict outcomes.',
-      icon: FaChartLine,
-      href: '/agents/analytics',
-      gradient: 'from-blue-400 to-cyan-500',
+  const handleNewChat = () => {
+    router.push('/vera');
+  };
+
+  const handleLoadSession = () => {
+    router.push('/vera');
+  };
+
+  const quickActions = [
+    { 
+      title: "Draft Email", 
+      icon: FaEnvelope, 
+      desc: "Generate professional comms", 
+      path: "/vera?agent=content" 
     },
-    {
-      id: 'meetings',
-      name: 'Meetings Agent',
-      description: 'AI meeting analysis & action items. Extract insights, summarize discussions, and track decisions.',
-      icon: FaUsers,
-      href: '/agents/meetings',
-      gradient: 'from-purple-400 to-pink-500',
+    { 
+      title: "Analyze Data", 
+      icon: FaChartLine, 
+      desc: "Upload CSVs or charts", 
+      path: "/vera?agent=analytics" 
     },
-    {
-      id: 'podcast',
-      name: 'Podcast Agent',
-      description: 'AI podcast creation. Generate scripts, create audio content, and produce engaging podcasts.',
-      icon: FaPodcast,
-      href: '/agents/podcast',
-      gradient: 'from-orange-400 to-red-500',
+    { 
+      title: "Summarize", 
+      icon: FaFileAlt, 
+      desc: "Condense long documents", 
+      path: "/vera?agent=default" 
     },
-    {
-      id: 'content',
-      name: 'Content Agent',
-      description: 'AI content & image generation. Create stories, articles, and visuals in Systemic Shifts style.',
-      icon: FaFileAlt,
-      href: '/agents/content',
-      gradient: 'from-green-400 to-emerald-500',
-    },
-    {
-      id: 'visual',
-      name: 'Visual Agent',
-      description: 'AI visual intelligence. Analyze images, generate tags, and organize visual content.',
-      icon: FaImages,
-      href: '/agents/visual',
-      gradient: 'from-indigo-400 to-purple-500',
-    },
-    {
-      id: 'quiz',
-      name: 'Quiz Agent',
-      description: 'AI quiz generation. Create quizzes from knowledge base or custom content automatically.',
-      icon: FaQuestionCircle,
-      href: '/agents/quiz',
-      gradient: 'from-yellow-400 to-orange-500',
+    { 
+      title: "Create Image", 
+      icon: FaImage, 
+      desc: "Generate visual assets", 
+      path: "/vera?agent=content" 
     },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-100 font-sans flex flex-col">
-      <LoadingAnimation />
-      <Header />
-      <main className="flex-grow relative z-10">
-        {/* Hero Section */}
-        <section className="relative min-h-[60vh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-gray-900 via-teal-900 to-cyan-900">
-          <div className="absolute inset-0 opacity-20">
-            <div className="absolute top-0 left-1/4 w-96 h-96 bg-teal-500 rounded-full mix-blend-multiply filter blur-3xl animate-blob" />
-            <div className="absolute top-0 right-1/4 w-96 h-96 bg-cyan-500 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-2000" />
-          </div>
-          
-          <div className="relative z-10 w-full max-w-7xl mx-auto px-4 md:px-8 py-20">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="text-center"
-            >
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-teal-500/20 backdrop-blur-sm border border-teal-400/30 mb-6">
-                <FaBolt className="w-4 h-4 text-teal-300" />
-                <span className="text-sm text-teal-200 font-medium">Mega AI Platform</span>
-              </div>
-              
-              <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6">
-                About Vera AI
-              </h1>
-              <p className="text-xl md:text-2xl text-cyan-200 max-w-3xl mx-auto leading-relaxed mb-8">
-                The core AI intelligence powering our mega AI platform with RAG-powered knowledge and 6 super AI agents that accelerate workflows
-              </p>
-              
-              <Link href="/vera">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="inline-flex items-center gap-3 px-8 py-4 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-full shadow-lg hover:shadow-2xl transition-all duration-300"
-                >
-                  <FaRobot className="text-xl" />
-                  <span>Try Vera Now</span>
-                  <FaArrowRight />
-                </motion.button>
-              </Link>
-            </motion.div>
+    <UnifiedAppLayout
+      onNewChat={handleNewChat}
+      onLoadSession={handleLoadSession}
+    >
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-12">
+        {/* 1. GREETING - With Gradient Text */}
+        <div className="mb-12">
+          <h1 className="text-4xl font-bold mb-3 tracking-tight">
+            Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500">VERA</span>
+          </h1>
+          <p className="text-lg text-gray-500 max-w-2xl">
+            Your intelligent assistant for <span className="font-semibold text-teal-700">PETRONAS Upstream</span> initiatives.
+            <br/>Select an action below to get started.
+          </p>
+        </div>
+
+        {/* 2. QUICK START GRID - Tier 1 Style */}
+        <h2 className="text-lg font-semibold text-gray-800 mb-6">Quick Actions</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-16">
+          {quickActions.map((action, i) => {
+            const IconComponent = action.icon;
+            return (
+              <button 
+                key={i}
+                onClick={() => router.push(action.path)}
+                className="group p-6 bg-white border border-gray-200 rounded-2xl hover:border-teal-500/50 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 text-left relative overflow-hidden"
+              >
+                {/* Gradient overlay on hover */}
+                <div className="absolute inset-0 bg-gradient-to-br from-teal-50/0 to-teal-50/50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                
+                {/* Icon Container - Squircle */}
+                <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform relative z-10">
+                  <IconComponent className="text-xl" />
+                </div>
+                
+                <h3 className="font-semibold text-gray-900 text-lg mb-1 relative z-10">{action.title}</h3>
+                <p className="text-sm text-gray-500 relative z-10">{action.desc}</p>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 3. ABOUT VERA SECTION - Minimalist */}
+        <motion.section 
+          className="mb-16"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="mb-6"
+          >
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">About <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500">VERA</span></h2>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="rounded-xl p-8 mb-8 bg-white border border-gray-200"
+          >
+            <p className="text-gray-700 leading-relaxed mb-4">
+              <strong className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500">VERA</strong> is an intelligent AI assistant designed specifically for <strong className="text-teal-700">PETRONAS Upstream</strong> operations, initiatives, and employee support. 
+              With knowledge about <strong>PETRONAS 2.0</strong> and <strong>Systemic Shifts</strong> as supporting context, <strong className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500">VERA</strong> helps accelerate workflows across your organization.
+            </p>
+            <p className="text-gray-700 leading-relaxed">
+              <strong className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500">VERA</strong> leverages Retrieval-Augmented Generation (RAG) technology to provide accurate, citation-backed responses from your knowledge base, 
+              ensuring you have access to the latest information about PETRONAS Upstream operations and strategic initiatives.
+            </p>
+          </motion.div>
+        </motion.section>
+
+        {/* 4. VERA CAPABILITIES SECTION */}
+        <section className="py-12 mb-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500">Vera</span>&apos;s Capabilities
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Powered by advanced AI technology and integrated with your knowledge base
+            </p>
+          </motion.div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              {
+                icon: FaDatabase,
+                title: 'RAG-Powered',
+                description: 'Retrieval-Augmented Generation ensures accurate, citation-backed responses from your knowledge base.',
+              },
+              {
+                icon: FaShieldAlt,
+                title: 'Citation-Backed',
+                description: 'Every response includes source citations, ensuring transparency and verifiability.',
+              },
+              {
+                icon: FaBolt,
+                title: 'Real-Time Streaming',
+                description: 'Experience live streaming responses with markdown support and syntax highlighting.',
+              },
+              {
+                icon: FaBrain,
+                title: 'Specialized Knowledge',
+                description: 'Deep understanding of PETRONAS Upstream operations, PETRONAS 2.0, and Systemic Shifts initiatives.',
+              },
+              {
+                icon: FaCloud,
+                title: 'Multimodal Support',
+                description: 'Process images, PDFs, and audio files alongside text for comprehensive understanding.',
+              },
+              {
+                icon: FaRobot,
+                title: 'Agent Integration',
+                description: 'Seamlessly invoke 6 specialized AI agents for specific workflow acceleration tasks.',
+              },
+            ].map((feature, index) => (
+              <motion.div
+                key={feature.title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
+                className="p-6 rounded-xl bg-white border border-gray-200 hover:shadow-lg transition-shadow"
+              >
+                <div className="w-12 h-12 rounded-lg bg-teal-100 flex items-center justify-center mb-4">
+                  <feature.icon className="w-6 h-6 text-teal-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{feature.title}</h3>
+                <p className="text-gray-600">{feature.description}</p>
+              </motion.div>
+            ))}
           </div>
         </section>
 
-        {/* Vera Capabilities Section */}
-        <section className="py-20 bg-white">
+        {/* 5. HOW VERA WORKS SECTION */}
+        <section className="py-12 mb-16 bg-gradient-to-br from-teal-50 to-cyan-50 rounded-2xl">
           <div className="max-w-7xl mx-auto px-4 md:px-8">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
-              className="text-center mb-16"
+              className="text-center mb-12"
             >
               <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-                Vera&apos;s Capabilities
+                How <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500">Vera</span> Works
               </h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Powered by advanced AI technology and integrated with your knowledge base
+                A technical overview of <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500">Vera</span>&apos;s architecture and knowledge integration
               </p>
             </motion.div>
-
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {[
-                {
-                  icon: FaDatabase,
-                  title: 'RAG-Powered',
-                  description: 'Retrieval-Augmented Generation ensures accurate, citation-backed responses from your knowledge base.',
-                },
-                {
-                  icon: FaShieldAlt,
-                  title: 'Citation-Backed',
-                  description: 'Every response includes source citations, ensuring transparency and verifiability.',
-                },
-                {
-                  icon: FaBolt,
-                  title: 'Real-Time Streaming',
-                  description: 'Experience live streaming responses with markdown support and syntax highlighting.',
-                },
-                {
-                  icon: FaCode,
-                  title: 'Code Generation',
-                  description: 'Generate, analyze, and explain code with full syntax highlighting and copy functionality.',
-                },
-                {
-                  icon: FaCloud,
-                  title: 'Multimodal Support',
-                  description: 'Process images, PDFs, and audio files alongside text for comprehensive understanding.',
-                },
-                {
-                  icon: FaRobot,
-                  title: 'Agent Integration',
-                  description: 'Seamlessly invoke 6 specialized AI agents for specific workflow acceleration tasks.',
-                },
-              ].map((feature, index) => (
-                <motion.div
-                  key={feature.title}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.6, delay: index * 0.1 }}
-                  className="p-6 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 hover:shadow-lg transition-shadow"
-                >
-                  <div className="w-12 h-12 rounded-lg bg-teal-100 flex items-center justify-center mb-4">
-                    <feature.icon className="w-6 h-6 text-teal-600" />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">{feature.title}</h3>
-                  <p className="text-gray-600">{feature.description}</p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* How Vera Works Section */}
-        <section className="py-20 bg-gradient-to-br from-teal-50 to-cyan-50">
-          <div className="max-w-7xl mx-auto px-4 md:px-8">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className="text-center mb-16"
-            >
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-                How Vera Works
-              </h2>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                A technical overview of Vera&apos;s architecture and knowledge integration
-              </p>
-            </motion.div>
-
             <div className="grid md:grid-cols-2 gap-8 mb-12">
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
@@ -229,7 +216,7 @@ export default function AboutPage() {
               >
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">RAG Architecture</h3>
                 <p className="text-gray-600 mb-4">
-                  Vera uses Retrieval-Augmented Generation (RAG) to provide accurate, context-aware responses:
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500">Vera</span> uses Retrieval-Augmented Generation (RAG) to provide accurate, context-aware responses:
                 </p>
                 <ul className="space-y-2 text-gray-600">
                   <li className="flex items-start">
@@ -250,7 +237,6 @@ export default function AboutPage() {
                   </li>
                 </ul>
               </motion.div>
-
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 whileInView={{ opacity: 1, x: 0 }}
@@ -260,7 +246,7 @@ export default function AboutPage() {
               >
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">Knowledge Base Integration</h3>
                 <p className="text-gray-600 mb-4">
-                  Vera&apos;s knowledge base is continuously updated and optimized:
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500">Vera</span>&apos;s knowledge base is continuously updated and optimized:
                 </p>
                 <ul className="space-y-2 text-gray-600">
                   <li className="flex items-start">
@@ -282,7 +268,6 @@ export default function AboutPage() {
                 </ul>
               </motion.div>
             </div>
-
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -309,68 +294,23 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* AI Agents Overview Section */}
-        <section className="py-20 bg-white">
+        {/* 6. USE CASES SECTION */}
+        <section className="py-12 mb-16 bg-gradient-to-br from-gray-900 to-teal-900 text-white rounded-2xl">
           <div className="max-w-7xl mx-auto px-4 md:px-8">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
-              className="text-center mb-16"
-            >
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-                The 6 Super AI Agents
-              </h2>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Specialized AI agents that accelerate workflows across different domains
-              </p>
-            </motion.div>
-
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {agents.map((agent, index) => (
-                <motion.div
-                  key={agent.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.6, delay: index * 0.1 }}
-                  className="group p-6 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 hover:shadow-xl transition-all duration-300"
-                >
-                  <div className={`w-16 h-16 rounded-xl bg-gradient-to-br ${agent.gradient} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                    <agent.icon className="w-8 h-8 text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">{agent.name}</h3>
-                  <p className="text-gray-600 mb-4">{agent.description}</p>
-                  <Link href={agent.href}>
-                    <span className="inline-flex items-center text-teal-600 font-semibold hover:text-teal-700 transition-colors">
-                      Try Agent <FaArrowRight className="ml-2" />
-                    </span>
-                  </Link>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Use Cases Section */}
-        <section className="py-20 bg-gradient-to-br from-gray-900 to-teal-900 text-white">
-          <div className="max-w-7xl mx-auto px-4 md:px-8">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className="text-center mb-16"
+              className="text-center mb-12"
             >
               <h2 className="text-4xl md:text-5xl font-bold mb-4">
                 Use Cases & Benefits
               </h2>
               <p className="text-xl text-cyan-200 max-w-3xl mx-auto">
-                How Vera accelerates workflows across your organization
+                How <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500">Vera</span> accelerates workflows across your organization
               </p>
             </motion.div>
-
             <div className="grid md:grid-cols-2 gap-8">
               {[
                 {
@@ -414,9 +354,9 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* CTA Section */}
-        <section className="py-20 bg-white">
-          <div className="max-w-4xl mx-auto px-4 md:px-8 text-center">
+        {/* 7. CTA SECTION */}
+        <section className="py-12">
+          <div className="max-w-4xl mx-auto text-center">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -424,10 +364,10 @@ export default function AboutPage() {
               transition={{ duration: 0.6 }}
             >
               <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-                Ready to Experience Vera?
+                Ready to Experience <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500">Vera</span>?
               </h2>
               <p className="text-xl text-gray-600 mb-8">
-                Start using Vera AI today and accelerate your workflows with intelligent automation
+                Start using <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-500">Vera</span> AI today and accelerate your workflows with intelligent automation
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link href="/vera">
@@ -452,8 +392,7 @@ export default function AboutPage() {
             </motion.div>
           </div>
         </section>
-      </main>
-      <Footer />
-    </div>
+      </div>
+    </UnifiedAppLayout>
   );
 }

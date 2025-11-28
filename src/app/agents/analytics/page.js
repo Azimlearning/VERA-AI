@@ -8,7 +8,6 @@ import TryPageLayout from '../../../components/agents/TryPageLayout';
 import DataInput from '../../../components/agents/analytics/DataInput';
 import AnalysisResults from '../../../components/agents/analytics/AnalysisResults';
 import ResultsDisplay from '../../../components/agents/ResultsDisplay';
-import FullVersionCTA from '../../../components/agents/FullVersionCTA';
 import { FaChartLine } from 'react-icons/fa';
 
 export default function AnalyticsAgentTryPage() {
@@ -118,7 +117,6 @@ export default function AnalyticsAgentTryPage() {
       agentColor="blue"
       agentGradient="from-blue-400 to-cyan-500"
       description="AI-powered data analysis and insights. Upload your data or use samples to see how AI can extract meaningful patterns, trends, and recommendations."
-      fullVersionLink="/statsx"
     >
       <div className="space-y-8">
         {/* Data Input Section */}
@@ -139,12 +137,6 @@ export default function AnalyticsAgentTryPage() {
             {results && <AnalysisResults results={results} />}
           </ResultsDisplay>
         )}
-
-        {/* Full Version CTA */}
-        <FullVersionCTA
-          href="/statsx"
-          agentName="Analytics Agent"
-        />
       </div>
     </TryPageLayout>
   );

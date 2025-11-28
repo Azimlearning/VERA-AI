@@ -8,7 +8,6 @@ import TryPageLayout from '../../../components/agents/TryPageLayout';
 import PromptInput from '../../../components/agents/content/PromptInput';
 import ContentDisplay from '../../../components/agents/content/ContentDisplay';
 import ResultsDisplay from '../../../components/agents/ResultsDisplay';
-import FullVersionCTA from '../../../components/agents/FullVersionCTA';
 import { FaFileAlt } from 'react-icons/fa';
 import { db } from '../../../lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -178,7 +177,6 @@ export default function ContentAgentTryPage() {
       agentColor="green"
       agentGradient="from-green-400 to-emerald-500"
       description="AI-powered content and image generation. Create stories, articles, and visuals in Systemic Shifts style using AI."
-      fullVersionLink="/nexushub/dropbox"
     >
       <div className="space-y-8">
         {/* Prompt Input Section */}
@@ -204,12 +202,6 @@ export default function ContentAgentTryPage() {
             )}
           </ResultsDisplay>
         )}
-
-        {/* Full Version CTA */}
-        <FullVersionCTA
-          href="/nexushub/dropbox"
-          agentName="Content Agent"
-        />
       </div>
     </TryPageLayout>
   );

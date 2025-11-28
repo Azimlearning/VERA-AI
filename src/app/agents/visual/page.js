@@ -8,7 +8,6 @@ import TryPageLayout from '../../../components/agents/TryPageLayout';
 import ImageUpload from '../../../components/agents/visual/ImageUpload';
 import ImageAnalysis from '../../../components/agents/visual/ImageAnalysis';
 import ResultsDisplay from '../../../components/agents/ResultsDisplay';
-import FullVersionCTA from '../../../components/agents/FullVersionCTA';
 import { FaImages } from 'react-icons/fa';
 
 export default function VisualAgentTryPage() {
@@ -30,17 +29,6 @@ export default function VisualAgentTryPage() {
 
     try {
       // Convert data URL to blob if needed, or use existing Cloud Function
-      let finalImageUrl = imageUrlToAnalyze;
-      
-      // If it's a data URL, we might need to upload it first
-      // For now, we'll use the analyzeImage Cloud Function which expects a URL
-      // We'll need to handle data URLs differently
-      
-      // For data URLs, we need to upload to a temporary location first
-      // OR use the Cloud Function API which can handle data URLs
-      // For now, we'll use the Cloud Function API for all cases
-      let finalImageUrl = imageUrlToAnalyze;
-      
       // If it's a data URL, we need to handle it differently
       // The Cloud Function expects a URL, so we might need to upload it first
       // For simplicity, let's use the analyzeImage Cloud Function which should handle this
@@ -84,7 +72,7 @@ export default function VisualAgentTryPage() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            imageUrl: finalImageUrl,
+            imageUrl: imageUrlToAnalyze,
             mode: 'single'
           }),
         });
@@ -143,7 +131,6 @@ export default function VisualAgentTryPage() {
       agentColor="indigo"
       agentGradient="from-indigo-400 to-purple-500"
       description="AI-powered image analysis. Upload images to extract tags, analyze content, and get intelligent insights using AI vision capabilities."
-      fullVersionLink="/nexushub/upg"
     >
       <div className="space-y-8">
         {/* Image Upload Section */}
@@ -169,12 +156,6 @@ export default function VisualAgentTryPage() {
             )}
           </ResultsDisplay>
         )}
-
-        {/* Full Version CTA */}
-        <FullVersionCTA
-          href="/nexushub/upg"
-          agentName="Visual Agent"
-        />
       </div>
     </TryPageLayout>
   );
