@@ -13,6 +13,10 @@ const path = require('path');
 const { TEXT_GENERATION_MODELS, IMAGE_GENERATION_MODELS } = require('./ai_models');
 // --- END NEW ---
 
+// Import prompt templates
+const { buildPrompt, buildDomainContext, loadPromptFromFile } = require('./promptTemplates');
+const { formatRAGContext, buildJSONSchemaSpec } = require('./promptHelpers');
+
 const OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions";
 const OPENROUTER_IMAGE_URL = "https://openrouter.ai/api/v1/images/generations";
 
@@ -49,7 +53,12 @@ async function generateWithFallback(prompt, keys, outputJson = false) {
         const genAI = new GoogleGenerativeAI(keys.gemini);
         const model = genAI.getGenerativeModel({ model: config.model });
         
-        const generationConfig = outputJson ? { responseMimeType: "application/json" } : {};
+        // Set max output tokens for longer responses (especially for podcast generation)
+        // Default to 5000 tokens for comprehensive outputs, adjust based on prompt length
+        const estimatedOutputTokens = Math.min(5000, Math.max(2000, Math.ceil(promptLength / 4) * 2));
+        const generationConfig = outputJson 
+          ? { responseMimeType: "application/json", maxOutputTokens: estimatedOutputTokens }
+          : { maxOutputTokens: estimatedOutputTokens };
         const result = await model.generateContent(prompt, generationConfig);
         resultText = result.response.text();
         
@@ -74,10 +83,15 @@ async function generateWithFallback(prompt, keys, outputJson = false) {
           'X-Title': 'Systemic Shift AI',
         };
 
+        // Set max_tokens for longer responses (especially for podcast generation)
+        // Default to 5000 tokens for comprehensive outputs, adjust based on prompt length
+        const estimatedOutputTokens = Math.min(5000, Math.max(2000, Math.ceil(promptLength / 4) * 2));
+        
         const body = {
           model: config.model,
           messages: [{ role: 'user', content: prompt }],
           response_format: outputJson ? { type: 'json_object' } : { type: 'text' },
+          max_tokens: estimatedOutputTokens,
         };
 
         const response = await fetch(OPENROUTER_CHAT_URL, {
@@ -286,28 +300,71 @@ async function extractTextFromFiles(storyData) {
  * Analyzes an image using OpenRouter with Gemini Vision model to generate tags and suggest category.
  * @param {string} imageUrl - Public URL of the image to analyze
  * @param {object} keys - Object containing API keys { gemini, openrouter }
+ * @param {string} ragContext - Optional RAG context from knowledge base for domain-specific analysis
  * @returns {Promise<object>} Object with tags array, category string, and optional description
  */
-async function analyzeImageWithAI(imageUrl, keys) {
+async function analyzeImageWithAI(imageUrl, keys, ragContext = '') {
   const fetch = (await import('node-fetch')).default;
   
-  const prompt = `Analyze this image from a PETRONAS Upstream gallery and provide:
-1. 5-10 relevant tags (comma-separated keywords that describe the image content, people, activities, equipment, locations, etc.)
-2. Best category from this exact list: Stock Images, Events, Team Photos, Infographics, Operations, Facilities
-3. A brief description (1-2 sentences)
+  // Define JSON schema for image analysis output
+  const imageAnalysisSchema = {
+    type: "object",
+    required: ["tags", "category", "description"],
+    properties: {
+      tags: { 
+        type: "array", 
+        description: "5-10 relevant tags (keywords describing image content, people, activities, equipment, locations, etc.)",
+        items: { type: "string" }
+      },
+      category: { 
+        type: "string", 
+        description: "Best category from: Stock Images, Events, Team Photos, Infographics, Operations, Facilities"
+      },
+      description: { 
+        type: "string", 
+        description: "Brief description (1-2 sentences)" 
+      }
+    }
+  };
 
-Return your response in JSON format only:
-{
-  "tags": ["tag1", "tag2", "tag3"],
-  "category": "Events",
-  "description": "Brief description here"
-}
-
-Focus on identifying:
-- What type of image it is (photo, graphic, infographic, etc.)
-- Main subjects (people, equipment, facilities, etc.)
-- Context (events, operations, team activities, etc.)
-- Visual style (corporate, casual, technical, etc.)`;
+  // Load image analysis prompt from file
+  const ragContextInstruction = ragContext 
+    ? "Use the knowledge base context to provide domain-specific insights and ensure accurate categorization based on PETRONAS Upstream terminology and practices."
+    : "Ensure categorization and tags align with PETRONAS Upstream operational context.";
+  
+  let prompt = loadPromptFromFile('image-analysis-prompt.txt', {
+    ragContext: ragContext || '',
+    outputFormat: buildJSONSchemaSpec(imageAnalysisSchema),
+    imageUrl: imageUrl,
+    ragContextInstruction: ragContextInstruction
+  });
+  
+  // Fallback to buildPrompt if file loading fails
+  if (!prompt) {
+    prompt = buildPrompt({
+      role: "Image Analysis Specialist",
+      roleDescription: "You are an image analysis specialist for PETRONAS Upstream. Your task is to analyze images from the gallery and provide accurate tags, categorization, and descriptions that help organize and search visual content.",
+      roleContext: "You analyze images for PETRONAS Upstream's internal gallery system, ensuring accurate categorization and tagging for better content discoverability.",
+      domainContext: true,
+      additionalDomainContext: buildDomainContext() + "\n\nImage Categories: Stock Images, Events, Team Photos, Infographics, Operations, Facilities",
+      knowledgeBaseContext: ragContext,
+      knowledgeBaseOptions: {
+        isPrimarySource: false,
+        showSimilarityScores: false,
+        includeFallback: false
+      },
+      instructions: [
+        "Analyze the provided image and identify key visual elements, subjects, and context.",
+        "Focus on identifying: (1) Image type (photo, graphic, infographic, etc.), (2) Main subjects (people, equipment, facilities, etc.), (3) Context (events, operations, team activities, etc.), (4) Visual style (corporate, casual, technical, etc.).",
+        "Generate 5-10 relevant tags that accurately describe the image content. Tags should be specific keywords that would help users find this image.",
+        "Categorize the image into the most appropriate category from the exact list: Stock Images, Events, Team Photos, Infographics, Operations, Facilities.",
+        "Write a brief description (1-2 sentences) that summarizes what the image shows and its relevance to PETRONAS Upstream operations.",
+        ragContext ? "Use the knowledge base context to provide domain-specific insights and ensure accurate categorization based on PETRONAS Upstream terminology and practices." : "Ensure categorization and tags align with PETRONAS Upstream operational context."
+      ],
+      outputFormat: buildJSONSchemaSpec(imageAnalysisSchema),
+      task: `Analyze this image from a PETRONAS Upstream gallery:\n\nImage URL: ${imageUrl}\n\nProvide tags, category, and description following the format specified above.`
+    });
+  }
 
   // Model list with fallback - try multiple models that support image analysis
   // Order: Try most capable models first, then fallback to simpler ones

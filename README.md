@@ -63,7 +63,6 @@ vera-ai/
 │   ├── components/       # React components
 │   └── lib/              # Utility functions and helpers
 ├── functions/            # Firebase Cloud Functions (Node.js)
-├── functions-python/     # Firebase Cloud Functions (Python)
 ├── public/               # Static assets
 └── Scripts_usage/        # Utility scripts
 ```
@@ -73,7 +72,7 @@ vera-ai/
 ### Prerequisites
 - Node.js 18+ and npm
 - Firebase CLI
-- Python 3.9+ (for Python functions)
+- Python 3.9+ (for local image generation service)
 
 ### Installation
 
@@ -124,9 +123,7 @@ Located in `functions/` directory:
 - `meetxAI` - Meeting insights and processing
 
 ### Python Functions
-Located in `functions-python/` directory:
-- `generateImageHfPython` - Python-based image generation
-- `analyzeImagePython` - Image analysis
+**Note:** Python Cloud Functions were removed. Image generation is now handled by the local service (`python/local_image_generator.py`).
 
 ## Deployment
 

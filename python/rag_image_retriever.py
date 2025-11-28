@@ -1,6 +1,7 @@
 """
 RAG Image Retriever
 Retrieves relevant visual style references from example images based on story content
+Combines local JSON styles with Firestore knowledge base image examples
 """
 import json
 import os
@@ -17,11 +18,20 @@ except ImportError:  # pragma: no cover - optional dependency
     SentenceTransformer = None
     np = None
 
+try:
+    from google.cloud import firestore
+    FIRESTORE_AVAILABLE = True
+    FirestoreClient = firestore.Client
+except ImportError:
+    FIRESTORE_AVAILABLE = False
+    FirestoreClient = None
+    logger.warning("Firestore not available. Knowledge base image retrieval will be disabled.")
+
 class ImageStyleRetriever:
     """Retrieves relevant image styles based on story content"""
     
-    def __init__(self, styles_file: str = None):
-        """Initialize with styles knowledge base"""
+    def __init__(self, styles_file: str = None, db = None):
+        """Initialize with styles knowledge base and optional Firestore client"""
         if styles_file is None:
             # Default to same directory as this file
             current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -29,8 +39,10 @@ class ImageStyleRetriever:
         
         self.styles_file = styles_file
         self.styles_data = self._load_styles()
+        self.db = db  # Firestore client for querying knowledge base
         self.semantic_model = None
         self.style_embeddings = None
+        self.kb_image_cache = None  # Cache for KB image embeddings
         self._initialize_semantic_model()
     
     def _load_styles(self) -> Dict:
@@ -121,9 +133,116 @@ class ImageStyleRetriever:
         
         return min(similarity, 1.0)  # Cap at 1.0
     
+    def _query_kb_images(self, query_text: str, top_k: int = 3) -> List[Dict]:
+        """Query Firestore knowledge base for documents with imageUrl"""
+        if not FIRESTORE_AVAILABLE or not self.db:
+            return []
+        
+        try:
+            # Query knowledge base for documents with imageUrl field
+            kb_ref = self.db.collection('knowledgeBase')
+            # Note: Firestore doesn't support querying for non-null fields directly
+            # We'll need to fetch and filter, or use a different approach
+            # For now, we'll query all recent documents and filter for those with imageUrl
+            query = kb_ref.order_by('createdAt', direction=firestore.Query.DESCENDING).limit(50)
+            docs = query.stream()
+            
+            kb_images = []
+            for doc in docs:
+                doc_data = doc.to_dict()
+                # Check if document has imageUrl and embedding
+                if doc_data.get('imageUrl') and doc_data.get('embedding'):
+                    # Create a style-like object from KB document
+                    kb_style = {
+                        'id': f"kb_{doc.id}",
+                        'source': 'knowledgeBase',
+                        'imageUrl': doc_data.get('imageUrl'),
+                        'title': doc_data.get('title', ''),
+                        'description': doc_data.get('content', '')[:200],  # First 200 chars
+                        'keywords': doc_data.get('tags', []),
+                        'category': doc_data.get('category', ''),
+                        'embedding': doc_data.get('embedding'),  # Store embedding for similarity
+                        'layout': self._infer_layout_from_content(doc_data.get('content', '')),
+                        'visualElements': self._extract_visual_elements(doc_data)
+                    }
+                    kb_images.append(kb_style)
+            
+            logger.info(f"Found {len(kb_images)} image examples in knowledge base")
+            return kb_images[:top_k]  # Return top K
+            
+        except Exception as exc:
+            logger.warning(f"Failed to query knowledge base images: {exc}")
+            return []
+    
+    def _infer_layout_from_content(self, content: str) -> str:
+        """Infer layout type from content text"""
+        content_lower = content.lower()
+        if any(word in content_lower for word in ['dashboard', 'chart', 'graph', 'data']):
+            return 'dashboard'
+        elif any(word in content_lower for word in ['timeline', 'process', 'flow', 'step']):
+            return 'horizontal_flow'
+        elif any(word in content_lower for word in ['circular', 'radial', 'pie']):
+            return 'circular'
+        elif any(word in content_lower for word in ['grid', 'multiple', 'sections']):
+            return 'grid'
+        elif any(word in content_lower for word in ['minimal', 'clean', 'simple']):
+            return 'minimal'
+        else:
+            return 'vertical'
+    
+    def _extract_visual_elements(self, doc_data: Dict) -> List[str]:
+        """Extract visual elements from document data"""
+        elements = []
+        content = doc_data.get('content', '').lower()
+        tags = [tag.lower() for tag in doc_data.get('tags', [])]
+        
+        # Common visual elements
+        if any(word in content or word in tags for word in ['chart', 'graph']):
+            elements.append('charts')
+        if any(word in content or word in tags for word in ['icon', 'icons']):
+            elements.append('icons')
+        if any(word in content or word in tags for word in ['metric', 'kpi', 'number']):
+            elements.append('metrics')
+        if any(word in content or word in tags for word in ['illustration', 'visual']):
+            elements.append('illustrations')
+        
+        return elements[:3]  # Limit to 3 elements
+    
+    def _calculate_kb_similarity(self, query_embedding: Optional[np.ndarray], story_keywords: List[str], kb_style: Dict) -> float:
+        """Calculate similarity score for knowledge base image using embeddings and keywords"""
+        if not query_embedding or not kb_style.get('embedding'):
+            # Fallback to keyword matching only
+            return self._calculate_similarity(story_keywords, kb_style)
+        
+        try:
+            # Convert embedding to numpy array if it's a list
+            kb_embedding = kb_style['embedding']
+            if isinstance(kb_embedding, list):
+                kb_embedding = np.array(kb_embedding)
+            
+            # Normalize embeddings
+            query_norm = query_embedding / (np.linalg.norm(query_embedding) + 1e-8)
+            kb_norm = kb_embedding / (np.linalg.norm(kb_embedding) + 1e-8)
+            
+            # Calculate cosine similarity (dot product of normalized vectors)
+            semantic_score = float(np.dot(query_norm, kb_norm))
+            
+            # Calculate keyword score
+            keyword_score = self._calculate_similarity(story_keywords, kb_style)
+            
+            # Combined score: 70% semantic, 30% keyword (optimized weighting)
+            combined_score = (0.7 * semantic_score) + (0.3 * keyword_score)
+            
+            return min(combined_score, 1.0)  # Cap at 1.0
+            
+        except Exception as exc:
+            logger.warning(f"Error calculating KB similarity: {exc}")
+            return self._calculate_similarity(story_keywords, kb_style)
+    
     def retrieve_styles(self, title: str, metrics_text: str, top_k: int = 2) -> List[Dict]:
         """
         Retrieve top K most relevant styles for the given story
+        Combines local JSON styles with knowledge base image examples
         
         Args:
             title: Story title
@@ -133,43 +252,64 @@ class ImageStyleRetriever:
         Returns:
             List of style dictionaries sorted by relevance
         """
-        if not self.styles_data.get("styles"):
-            logger.warning("No styles available, returning default style")
-            default = self.styles_data.get("defaultStyle", {})
-            return [default] if default else []
+        all_styles = []
+        
+        # 1. Get local JSON styles
+        local_styles = []
+        if self.styles_data.get("styles"):
+            local_styles = self.styles_data.get("styles", [])
+        
+        # 2. Get knowledge base image examples
+        kb_styles = []
+        query_text = f"{title} {metrics_text}".strip()
+        if self.db:
+            kb_styles = self._query_kb_images(query_text, top_k=3)
         
         # Extract keywords from story
         story_keywords = self._extract_keywords(title, metrics_text)
         logger.debug(f"Extracted keywords from story: {story_keywords}")
         
-        query_text = f"{title} {metrics_text}".strip()
+        # Generate query embedding for semantic similarity
         query_embedding = None
-        semantic_weights = []
-        if self.semantic_model and self.style_embeddings is not None and np is not None:
+        if self.semantic_model and np is not None:
             try:
                 query_embedding = self.semantic_model.encode(query_text, normalize_embeddings=True)
             except Exception as exc:
                 logger.warning("Failed to generate semantic embedding for prompt: %s", exc)
                 query_embedding = None
         
-        # Calculate similarity for each style
+        # Calculate similarity for local styles
         styles_with_scores = []
-        for idx, style in enumerate(self.styles_data.get("styles", [])):
-            keyword_score = self._calculate_similarity(story_keywords, style)
-            semantic_score = 0.0
-            if query_embedding is not None and self.style_embeddings is not None:
-                semantic_score = float(np.dot(query_embedding, self.style_embeddings[idx]))
-            combined_score = (0.65 * semantic_score) + (0.35 * keyword_score)
-            styles_with_scores.append((combined_score, style))
+        if self.style_embeddings is not None and query_embedding is not None:
+            for idx, style in enumerate(local_styles):
+                keyword_score = self._calculate_similarity(story_keywords, style)
+                semantic_score = 0.0
+                if query_embedding is not None:
+                    semantic_score = float(np.dot(query_embedding, self.style_embeddings[idx]))
+                # Optimized weighting: 70% semantic, 30% keyword
+                combined_score = (0.7 * semantic_score) + (0.3 * keyword_score)
+                styles_with_scores.append((combined_score, style, 'local'))
+        else:
+            # Fallback to keyword-only matching
+            for style in local_styles:
+                keyword_score = self._calculate_similarity(story_keywords, style)
+                styles_with_scores.append((keyword_score, style, 'local'))
+        
+        # Calculate similarity for KB styles
+        for kb_style in kb_styles:
+            similarity = self._calculate_kb_similarity(query_embedding, story_keywords, kb_style)
+            styles_with_scores.append((similarity, kb_style, 'kb'))
         
         # Sort by similarity (descending)
         styles_with_scores.sort(key=lambda x: x[0], reverse=True)
         
-        # Return top K styles
-        top_styles = [style for score, style in styles_with_scores[:top_k]]
+        # Return top K styles (mix of local and KB)
+        top_styles = [style for score, style, source in styles_with_scores[:top_k]]
         
         if top_styles:
-            logger.info(f"Retrieved {len(top_styles)} style(s). Top match: {top_styles[0].get('id', 'unknown')} (similarity: {styles_with_scores[0][0]:.2f})")
+            top_score = styles_with_scores[0][0] if styles_with_scores else 0.0
+            top_source = styles_with_scores[0][2] if styles_with_scores else 'unknown'
+            logger.info(f"Retrieved {len(top_styles)} style(s). Top match: {top_styles[0].get('id', 'unknown')} (similarity: {top_score:.2f}, source: {top_source})")
         else:
             logger.warning("No styles matched, using default")
             default = self.styles_data.get("defaultStyle", {})

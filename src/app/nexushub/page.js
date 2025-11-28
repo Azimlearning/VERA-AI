@@ -1,7 +1,7 @@
 // src/app/nexushub/page.js
 
 import Link from 'next/link';
-import { FaBoxOpen, FaImages, FaThList, FaNetworkWired } from 'react-icons/fa';
+import { FaImages, FaThList, FaNetworkWired } from 'react-icons/fa';
 import FadeInWhenVisible from '../../components/animations/FadeInWhenVisible';
 
 const NexusHubLanding = () => (
@@ -12,30 +12,15 @@ const NexusHubLanding = () => (
         Welcome to NexusHub
       </h2>
       <p className="text-xl text-gray-600">
-        Your central hub for digital items, collaterals, and submissions.
+        Your central hub for digital items and submissions.
       </p>
       <p className="text-gray-600 mt-2">
-        Explore collaterals, galleries, dropbox submissions, and video content.
+        Explore galleries, dropbox submissions, and video content.
       </p>
     </div>
 
     {/* Quick Links Cards */}
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-      {/* Collaterals Card */}
-      <Link href="/nexushub/collaterals" className="group">
-        <div className="bg-gradient-to-br from-blue-50 to-cyan-50 p-6 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 border-2 border-transparent hover:border-blue-500">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="bg-blue-600 p-3 rounded-lg group-hover:scale-110 transition-transform">
-              <FaBoxOpen className="text-white text-2xl" />
-            </div>
-            <h3 className="text-2xl font-bold text-blue-700">Collaterals</h3>
-          </div>
-          <p className="text-gray-700">
-            Access and manage digital collaterals and resources for your projects.
-          </p>
-        </div>
-      </Link>
-
       {/* UpstreamGallery Card */}
       <Link href="/nexushub/upg" className="group">
         <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 border-2 border-transparent hover:border-green-500">

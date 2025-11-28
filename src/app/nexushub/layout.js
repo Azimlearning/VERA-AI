@@ -18,7 +18,6 @@ export default function NexusHubLayout({ children }) {
 
   const nexusHubNavItems = [
     { name: 'Overview', href: '/nexushub' },
-    { name: 'Collaterals', href: '/nexushub/collaterals' },
     { name: 'UpstreamGallery', href: '/nexushub/upg' },
     { name: 'Systemic Shifts Dropbox', href: '/nexushub/dropbox' },
   ];

@@ -18,7 +18,11 @@ const DEFAULT_SIMILARITY_THRESHOLDS = {
   general: 0.3,
   chat: 0.28,
   podcast: 0.27,
-  writeup: 0.32
+  writeup: 0.32,
+  content: 0.32,
+  analytics: 0.3,
+  visual: 0.3,
+  meeting: 0.3
 };
 const CACHE_COLLECTION = 'ragQueryCache';
 const CACHE_TTL_MINUTES = 30;
@@ -48,12 +52,17 @@ class ChatbotRAGRetriever {
   }
 
   /**
-   * Retrieve relevant documents from knowledge base using semantic search
+   * Retrieve relevant documents from specified collections using semantic search
    * @param {string} query - User's question/query
    * @param {object} keys - API keys for embeddings { openai, openrouter }
    * @param {number} topK - Number of documents to retrieve (default: 3)
    * @param {string[]} categories - Optional categories to filter by
-   * @param {object} options - Optional configuration { minSimilarity, queryType, adaptive }
+   * @param {object} options - Optional configuration { 
+   *   minSimilarity, 
+   *   queryType, 
+   *   adaptive,
+   *   collections - string or array of collection names (default: 'knowledgeBase')
+   * }
    * @returns {Promise<Array>} Array of relevant documents with similarity scores
    */
   async retrieveRelevantDocuments(query, keys, topK = 3, categories = null, options = {}) {
@@ -61,7 +70,9 @@ class ChatbotRAGRetriever {
       console.log(`[ChatbotRAG] Retrieving documents for query: "${query.substring(0, 100)}..."`);
 
       const useCache = options.useCache !== false;
-      const cacheKey = useCache ? this._buildCacheKey(query, categories, options.queryType) : null;
+      const collections = options.collections || 'knowledgeBase';
+      const collectionList = Array.isArray(collections) ? collections : [collections];
+      const cacheKey = useCache ? this._buildCacheKey(query, categories, options.queryType, collectionList) : null;
       if (useCache && cacheKey) {
         const cached = await this._getCachedDocuments(cacheKey);
         if (cached) {
@@ -74,29 +85,45 @@ class ChatbotRAGRetriever {
       const queryEmbedding = await generateEmbedding(query, keys);
       console.log(`[ChatbotRAG] Generated query embedding (${queryEmbedding.length} dimensions)`);
 
-      // Build Firestore query
+      // Build Firestore queries for all specified collections
       const db = getDb();
-      let knowledgeBaseQuery = db.collection('knowledgeBase');
-      
-      // Filter by categories if provided
-      if (categories && categories.length > 0) {
-        knowledgeBaseQuery = knowledgeBaseQuery.where('category', 'in', categories);
+      let allDocuments = [];
+
+      for (const collectionName of collectionList) {
+        console.log(`[ChatbotRAG] Searching collection: ${collectionName}`);
+        let collectionQuery = db.collection(collectionName);
+        
+        // Filter by categories if provided (only for knowledgeBase)
+        if (collectionName === 'knowledgeBase' && categories && categories.length > 0) {
+          collectionQuery = collectionQuery.where('category', 'in', categories);
+        }
+
+        // Get all documents (or filtered subset)
+        const snapshot = await collectionQuery.get();
+        
+        if (snapshot.empty) {
+          console.log(`[ChatbotRAG] No documents found in ${collectionName}`);
+          continue;
+        }
+
+        console.log(`[ChatbotRAG] Found ${snapshot.size} documents in ${collectionName}`);
+        const collectionDocs = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ref: doc.ref,
+          data: doc.data(),
+          collection: collectionName
+        }));
+        
+        allDocuments = allDocuments.concat(collectionDocs);
       }
 
-      // Get all documents (or filtered subset)
-      const snapshot = await knowledgeBaseQuery.get();
-      
-      if (snapshot.empty) {
-        console.log('[ChatbotRAG] No documents found in knowledge base');
+      if (allDocuments.length === 0) {
+        console.log('[ChatbotRAG] No documents found in any collection');
         return [];
       }
 
-      console.log(`[ChatbotRAG] Found ${snapshot.size} documents to search`);
-      const documents = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ref: doc.ref,
-        data: doc.data()
-      }));
+      console.log(`[ChatbotRAG] Total documents to search: ${allDocuments.length}`);
+      const documents = allDocuments;
 
       const docsMissingEmbeddings = documents.filter(doc => !doc.data.embedding || !Array.isArray(doc.data.embedding));
       if (docsMissingEmbeddings.length > 0) {
@@ -138,13 +165,14 @@ class ChatbotRAGRetriever {
         
         documentsWithScores.push({
           id: doc.id,
-          title: docData.title,
-          content: docData.content,
-          category: docData.category,
-          source: docData.source,
-          sourceUrl: docData.sourceUrl,
+          title: docData.title || docData.meetingTitle || 'Untitled',
+          content: docData.content || docData.summary || docData.notes || '',
+          category: docData.category || null,
+          source: docData.source || doc.collection,
+          sourceUrl: docData.sourceUrl || null,
           tags: docData.tags || [],
           similarity: similarity,
+          collection: doc.collection || 'knowledgeBase'
         });
       }
 
@@ -262,22 +290,32 @@ class ChatbotRAGRetriever {
   }
 
   /**
-   * Generate embeddings for all documents in knowledge base (batch operation)
+   * Generate embeddings for all documents in specified collection(s) (batch operation)
    * @param {object} keys - API keys
    * @param {number} batchSize - Number of documents to process at once
    * @param {boolean} forceRegenerate - Force regeneration even if embedding exists
+   * @param {string|string[]} collections - Collection name(s) to process (default: 'knowledgeBase')
    * @returns {Promise<number>} Number of documents processed
    */
-  async generateAllEmbeddings(keys, batchSize = 10, forceRegenerate = false) {
+  async generateAllEmbeddings(keys, batchSize = 10, forceRegenerate = false, collections = 'knowledgeBase') {
     try {
       const db = getDb();
-      const snapshot = await db.collection('knowledgeBase').get();
+      const collectionList = Array.isArray(collections) ? collections : [collections];
+      let allDocs = [];
+      
+      // Get documents from all specified collections
+      for (const collectionName of collectionList) {
+        const snapshot = await db.collection(collectionName).get();
+        const docs = snapshot.docs.map(doc => ({ id: doc.id, ref: doc.ref, data: doc.data(), collection: collectionName }));
+        allDocs = allDocs.concat(docs);
+      }
+      
       let processed = 0;
       let skipped = 0;
       let errors = 0;
 
-      console.log(`[ChatbotRAG] Found ${snapshot.docs.length} documents in knowledge base`);
-      const documents = snapshot.docs.map(doc => ({ id: doc.id, ref: doc.ref, data: doc.data() }));
+      console.log(`[ChatbotRAG] Found ${allDocs.length} documents in ${collectionList.join(', ')}`);
+      const documents = allDocs;
       const docsToProcess = documents.filter(doc => 
         forceRegenerate || !doc.data.embedding || !Array.isArray(doc.data.embedding) || doc.data.embedding.length === 0
       );
@@ -337,9 +375,10 @@ class ChatbotRAGRetriever {
     }
   }
 
-  _buildCacheKey(query, categories, queryType) {
+  _buildCacheKey(query, categories, queryType, collections) {
     const hash = crypto.createHash('sha1');
-    hash.update(`${queryType || 'general'}|${query}|${(categories || []).join(',')}`);
+    const collectionsStr = Array.isArray(collections) ? collections.join(',') : (collections || 'knowledgeBase');
+    hash.update(`${queryType || 'general'}|${query}|${(categories || []).join(',')}|${collectionsStr}`);
     return hash.digest('hex');
   }
 

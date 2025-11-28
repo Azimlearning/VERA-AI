@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // NOTE: This app uses sessionStorage-based authentication, not Firebase Auth
+    // These rules allow access without Firebase Auth. For production, consider
+    // implementing proper Firebase Authentication for better security.
+    
+    // Analytics collection - allow read/write for all (for tracking)
+    match /analytics/{document=**} {
+      allow read, write: if true;
+    }
+    
+    // Article engagement - read/write for all
+    match /articleEngagement/{document=**} {
+      allow read, write: if true;
+    }
+    
+    // Article comments - read/write for all
+    match /articleComments/{document=**} {
+      allow read, write: if true;
+    }
+    
+    // Article likes - read/write for all
+    match /articleLikes/{document=**} {
+      allow read, write: if true;
+    }
+    
+    // Knowledge base - read/write for all
+    match /knowledgeBase/{document=**} {
+      allow read, write: if true;
+    }
+    
+    // Chat sessions - read/write for all
+    match /chatSessions/{sessionId} {
+      allow read, write: if true;
+    }
+    
+    // Meetings - read/write for all
+    match /meetings/{meetingId} {
+      allow read, write: if true;
+    }
+    
+    // Podcasts - read/write for all
+    match /podcasts/{podcastId} {
+      allow read, write: if true;
+    }
+    
+    // Stories - read/write for all
+    match /stories/{storyId} {
+      allow read, write: if true;
+    }
+    
+    // Upstream gallery - read/write for all
+    match /upstreamGallery/{document=**} {
+      allow read, write: if true;
+    }
+    
+    // RAG query cache - read/write for all (used by Cloud Functions)
+    match /ragQueryCache/{document=**} {
+      allow read, write: if true;
+    }
+    
+    // Stats snapshots - read for all, write only from server (Cloud Functions bypass rules)
+    match /statsSnapshots/{document=**} {
+      allow read: if true;
+      // Write is handled by Cloud Functions which bypass security rules
+    }
+    
+    // Default: allow access to all other collections
+    // For production, you may want to restrict this
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
+

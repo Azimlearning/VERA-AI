@@ -242,7 +242,16 @@ h1, h2, h3, .hero-logo {
 /* Input Wrapper - Limits width like Gemini */
 .input-wrapper {
   width: 100%;
-  max-width: 800px; /* Limits width like Gemini */
+  max-width: 850px !important; /* Match chat message width */
+  margin: 0 auto;
+}
+
+/* Only apply max-width when NOT in split mode */
+.empty-state-hero .input-wrapper,
+.empty-state-hero .chat-input-wrapper {
+  max-width: 850px !important;
+  width: 100%;
+  margin: 0 auto;
 }
 
 /* Suggestion Container - Grid Layout (2x2) */
@@ -251,9 +260,10 @@ h1, h2, h3, .hero-logo {
   grid-template-columns: 1fr 1fr; /* Create 2 equal columns */
   gap: 12px;
   
+  /* Make sure this matches the chat width too */
   width: 100%;
-  max-width: 850px; /* Match the new input bar width */
-  margin: 20px auto 0 auto;
+  max-width: 850px !important; /* Match the input bar and message width */
+  margin: 10px auto; /* Center it */
 }
 
 /* Mobile Responsiveness: Stack them on small screens */
@@ -302,8 +312,19 @@ h1, h2, h3, .hero-logo {
   scrollbar-width: none;  /* Firefox */
   
   padding: 12px 0;
+  padding-right: 40px; /* Increase padding right so the scroll doesn't feel abrupt */
   margin-top: 8px;
   border-top: 1px solid #f0f0f0; /* Subtle separator line */
+  
+  /* The "Tier 1" Fade Effect - Make the mask more gradual */
+  /* This makes the cards fade out as they scroll off screen */
+  mask-image: linear-gradient(to right, black 85%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+  
+  /* Prevent horizontal overflow */
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Hide scrollbar for Chrome/Safari/Opera */
@@ -449,6 +470,424 @@ h1, h2, h3, .hero-logo {
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
+/* Agent Workspace - Split Screen Layout */
+.agent-workspace {
+  display: grid;
+  grid-template-columns: 1fr 0px;
+  height: 100%;
+  width: 100%;
+  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  overflow: hidden;
+}
+
+.agent-workspace.is-active {
+  grid-template-columns: 60% 40%; /* Give Chat 60%, Panel 40% for better proportions */
+}
+
+/* LEFT: Chat Area */
+.workspace-chat {
+  width: 100%;
+  min-width: 0; /* CRITICAL: Allows flex children to shrink below their content size */
+  display: flex;
+  flex-direction: column;
+  
+  /* CRITICAL FIX: Center the message rows */
+  align-items: center;
+  
+  /* Add padding so it never touches the screen edge on mobile */
+  padding: 0 20px;
+  
+  overflow-x: hidden; /* Kill the horizontal scrollbar */
+  overflow-y: hidden; /* Prevent vertical scroll on container */
+  transition: all 0.3s ease;
+  box-sizing: border-box; /* Include padding in width calculation */
+}
+
+/* Force the Message Rows (and all children) to match the Input Bar width */
+.workspace-chat > div,
+.workspace-chat .message-row,
+.workspace-chat .bot-response {
+  width: 100%;
+  max-width: 850px; /* Match your input bar's max-width */
+}
+
+/* When NOT in split mode, constrain chat content to reading column */
+.agent-workspace:not(.is-active) .workspace-chat > div {
+  max-width: 850px;
+  width: 100%;
+}
+
+/* Ensure all children respect the container width */
+.workspace-chat > * {
+  min-width: 0; /* Allow flex children to shrink */
+  max-width: 100%; /* Prevent overflow */
+  box-sizing: border-box;
+}
+
+/* Prevent horizontal overflow on the entire workspace */
+.agent-workspace {
+  overflow-x: hidden !important;
+  width: 90vw;
+  max-width: 100vw; /* Never exceed viewport width */
+}
+
+.agent-workspace.is-active {
+  overflow-x: hidden !important;
+  max-width: 100vw; /* Never exceed viewport width */
+}
+
+/* Prevent body/html from scrolling horizontally */
+body, html {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Force all nested elements to respect width */
+.workspace-chat * {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Fix padding on chat content wrapper */
+.agent-workspace.is-active .workspace-chat > div {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.agent-workspace.is-active .workspace-chat .px-4,
+.agent-workspace.is-active .workspace-chat .px-6,
+.agent-workspace.is-active .workspace-chat .px-8 {
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
+
+/* When panel is active, adjust chat layout */
+.agent-workspace.is-active .workspace-chat {
+  max-width: 100%;
+  margin: 0;
+  padding-right: 20px; /* Add some breathing room near the border */
+}
+
+/* Ensure all content inside chat respects the column width */
+.agent-workspace.is-active .workspace-chat * {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Override fixed max-widths when panel is active */
+.agent-workspace.is-active .workspace-chat .max-w-\[800px\] {
+  max-width: 100% !important;
+}
+
+.agent-workspace.is-active .workspace-chat .max-w-\[85\%\] {
+  max-width: 95% !important; /* Slightly less to prevent edge touching */
+}
+
+/* Ensure sources scroll internally, not pushing the page out */
+.sources-container {
+  max-width: 100%;
+}
+
+/* RIGHT: Artifact Panel - Document Style */
+.workspace-panel {
+  width: 0;
+  min-width: 0;
+  opacity: 0;
+  overflow: hidden; /* Stops the whole panel from scrolling */
+  background-color: #ffffff;
+  border-left: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  transition: width 0.4s ease, opacity 0.3s ease 0.1s;
+}
+
+.agent-workspace.is-active .workspace-panel {
+  width: 100%; /* Fill the grid column completely */
+  opacity: 1;
+  min-width: 0; /* Ensure min-width doesn't fight the grid */
+}
+
+/* Panel Header - Sticky Toolbar */
+.panel-header {
+  height: 60px;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  border-bottom: 1px solid #f0f0f0;
+  background-color: #fff;
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.doc-icon {
+  font-size: 18px;
+}
+
+.doc-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.icon-btn:hover:not(:disabled) {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.close-btn:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* Panel Content - The "Paper" */
+.panel-content {
+  flex: 1;
+  padding: 30px; /* Reduce padding so text goes closer to edges */
+  overflow-y: auto; /* CRITICAL: Only this part scrolls */
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #374151;
+  max-width: none; /* Remove max-width so it fills the panel */
+  width: 100%;
+  
+  /* Firefox scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
+}
+
+/* Chrome, Edge, Safari scrollbar */
+.panel-content::-webkit-scrollbar {
+  width: 6px; /* Very thin width */
+}
+
+.panel-content::-webkit-scrollbar-track {
+  background: transparent; /* See-through track */
+}
+
+.panel-content::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.1); /* Very subtle grey thumb */
+  border-radius: 20px; /* Round edges */
+  border: 2px solid transparent; /* Creates padding effect */
+  background-clip: content-box;
+}
+
+/* Only make it darker when the user actually hovers over it */
+.panel-content::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Media Footer - Sticky Audio Player (Podcast) */
+.panel-media-footer {
+  flex-shrink: 0; /* Never shrink */
+  
+  /* CHANGE: Make background semi-transparent */
+  background: rgba(255, 255, 255, 0.85);
+  
+  /* ADD: The Apple/Windows "Frosted Glass" effect */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  
+  border-top: 1px solid rgba(0, 0, 0, 0.05); /* Softer border */
+  
+  /* Add a shadow so it feels like a sticky control deck */
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
+  padding: 20px 30px;
+  
+  z-index: 10; /* Ensure it stays on top of scrolling text */
+}
+
+.audio-info {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.audio-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #009688; /* Use brand color for the label */
+  background: #e0f2f1;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.download-link {
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: #666;
+  text-decoration: none;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.download-link:hover {
+  text-decoration: underline;
+  color: #333;
+}
+
+.custom-audio-player {
+  width: 100%; /* Make player full width */
+  height: 40px;
+}
+
+/* User Message Bubble - Tier 1 Polish */
+/* Target user messages in chat - more specific selector */
+.workspace-chat [class*="bg-teal-600"][class*="rounded-br-md"],
+.workspace-chat .items-end [class*="bg-teal-600"] {
+  /* 1. Prevent infinite stretching */
+  width: fit-content !important;
+  max-width: 80% !important; /* Never wider than 80% of the 850px column */
+  
+  /* 2. Push it to the right */
+  margin-left: auto !important;
+  margin-right: 0 !important; /* Don't push it off screen */
+  
+  /* 3. Visuals */
+  background: linear-gradient(135deg, #009688 0%, #00897b 100%) !important;
+  color: white !important;
+  box-shadow: 0 2px 5px rgba(0, 150, 136, 0.2) !important;
+  border-radius: 18px 18px 2px 18px !important;
+  padding: 12px 18px !important;
+}
+
+/* Sidebar - Highlight AI Agents when agent is active */
+.sidebar-nav-link.active-agent,
+.sidebar-link-active {
+  background-color: rgba(0, 150, 136, 0.1); /* Very faint Teal background */
+  color: #009688 !important; /* Teal Text */
+  border-right: 3px solid #009688; /* A visual indicator on the edge */
+}
+
+.sidebar-nav-link.active-agent:hover,
+.sidebar-link-active:hover {
+  background-color: rgba(0, 150, 136, 0.15) !important;
+}
+
+/* Update the icon color inside the active link too */
+.sidebar-link-active svg,
+.sidebar-nav-link.active-agent svg {
+  color: #009688;
+}
+
+/* Agent Picker Dropdown - Fix Squashed Width */
+/* Target the dropdown menu container */
+.absolute.bottom-full.w-80,
+.footer-left .absolute.bottom-full,
+[role="menu"],
+.model-dropdown-menu {
+  /* CRITICAL FIX: Force it to be wide enough */
+  width: 300px !important;
+  min-width: 300px !important;
+  
+  /* Prevent text wrapping causing the vertical squish */
+  white-space: normal;
+  
+  /* Ensure it floats on top of everything */
+  position: absolute !important;
+  bottom: 100% !important; /* sit above button */
+  left: 0 !important;
+  right: auto !important;
+  z-index: 50 !important;
+  
+  /* Restore the look */
+  background: white !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+  padding: 8px !important;
+  margin-bottom: 8px !important;
+}
+
+/* Script Typography - Speaker Labels */
+.script-body {
+  font-family: 'Inter', sans-serif;
+}
+
+.script-line {
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+.speaker-label {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.speaker-label.host {
+  background-color: #e0f2f1; /* Light Teal */
+  color: #009688;
+}
+
+.speaker-label.guest {
+  background-color: #f3e5f5; /* Light Purple */
+  color: #9c27b0;
+}
+
+/* Mobile: Stack vertically or overlay */
+@media (max-width: 768px) {
+  .agent-workspace.is-active {
+    grid-template-columns: 1fr;
+  }
+  
+  .workspace-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100% !important;
+    z-index: 50;
+    background: white;
+    box-shadow: -4px 0 12px rgba(0, 0, 0, 0.15);
+  }
+}
+
 /* Ghost Delete Button for Sidebar */
 /* 1. The Container for a single history item */
 .history-item {
@@ -502,51 +941,157 @@ h1, h2, h3, .hero-logo {
   visibility: visible;
 }
 
-/* Gemini Style Input Box */
-/* 1. The Main Box Wrapper */
+/* Command Center Input Box */
+/* 1. The Main Container */
 .chat-input-wrapper {
-  background: white;
-  border: 1px solid #e5e7eb; /* Subtle border */
-  border-radius: 16px; /* Large curves like Gemini */
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  
-  width: 100%;
-  max-width: 850px; /* Wider to accommodate tools */
-  margin: 0 auto;
-  padding: 12px;
-  
+  background: #ffffff; /* Pure white */
+  border: 1px solid #e5e7eb;
+  border-radius: 16px; /* Smooth corners */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  padding: 12px 16px;
   display: flex;
   flex-direction: column;
-  transition: border-color 0.2s;
+  transition: all 0.2s ease;
+  position: relative;
+  
+  width: 100%;
+  max-width: 850px; /* Match chat message width for alignment */
+  margin: 0 auto;   /* Ensure it stays centered in the LEFT column */
+}
+
+/* When inside an active workspace, remove the max-width constraint */
+.agent-workspace.is-active .chat-input-wrapper {
+  max-width: 100%; /* Fill the column completely */
+  margin: 0;       /* Remove centering margins */
 }
 
 .chat-input-wrapper:focus-within {
-  border-color: #009688; /* Highlight border when typing */
-  box-shadow: 0 4px 12px rgba(0, 150, 136, 0.15);
+  border-color: #009688; /* Teal glow on focus */
+  box-shadow: 0 4px 12px rgba(0, 150, 136, 0.1);
 }
 
-/* 2. The Text Area (Invisible) */
+/* 2. The Text Area */
 .chat-textarea {
   width: 100%;
   border: none;
   outline: none;
-  resize: none; /* User shouldn't resize manually */
-  font-size: 16px;
-  color: #333;
+  resize: none;
   background: transparent;
-  min-height: 40px;
+  font-family: var(--font-inter), 'Inter', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #1f2937;
   max-height: 200px;
-  font-family: inherit;
+  min-height: 24px;
+  margin-bottom: 8px; /* Space between text and controls */
 }
 
 /* 3. The Footer Row */
-.chat-input-footer {
+.chat-input-footer,
+.input-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 8px; /* Space between text and buttons */
+  padding-top: 4px;
 }
 
+.footer-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.footer-left {
+  display: flex;
+  align-items: center;
+}
+
+/* 4. The Attachment Button (Paperclip) */
+.attach-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: #6b7280; /* Grey */
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.attach-btn:hover {
+  background: #f3f4f6; /* Light grey circle on hover */
+  color: #374151;
+}
+
+/* 5. The Agent Pill Selector */
+.agent-pill-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f0fdfa; /* Very light teal background */
+  border: 1px solid transparent;
+  color: #009688; /* Teal text */
+  padding: 6px 12px;
+  border-radius: 20px; /* Pill shape */
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.agent-pill-btn:hover {
+  background: #e0f2f1; /* Slightly darker teal on hover */
+  border-color: #009688; /* Add border on hover */
+}
+
+.agent-icon { 
+  font-size: 14px; 
+  display: flex;
+  align-items: center;
+}
+
+.agent-name {
+  white-space: nowrap;
+}
+
+.chevron { 
+  opacity: 0.6; 
+}
+
+/* 6. The Send Button (Circle) */
+.send-btn-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%; /* Perfect circle */
+  background: #009688; /* Brand Teal */
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 150, 136, 0.3);
+}
+
+.send-btn-circle:hover {
+  background: #00897b;
+  transform: scale(1.05); /* Subtle pop */
+}
+
+/* Disabled state (when input is empty) */
+.send-btn-circle:disabled {
+  background: #e5e7eb;
+  color: #9ca3af;
+  box-shadow: none;
+  cursor: default;
+  transform: none;
+}
+
+/* Legacy support for old class names */
 /* 4. Left: Tools Button */
 .tool-btn {
   background: #f3f4f6;
@@ -584,7 +1129,7 @@ h1, h2, h3, .hero-logo {
   color: #111;
 }
 
-/* 6. Right: Send Button */
+/* 6. Right: Send Button (Legacy) */
 .send-btn-filled {
   background: #009688; /* Your VERA Teal */
   color: white;
@@ -606,4 +1151,468 @@ h1, h2, h3, .hero-logo {
 .send-btn-filled:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* ========================================
+   QUIZ AGENT - INTERACTIVE LEARNING STYLES
+   ======================================== */
+
+/* Quiz Cover Sheet */
+.quiz-cover-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.quiz-header-large {
+  margin-bottom: 32px;
+}
+
+.quiz-icon-large {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.quiz-title-large {
+  font-size: 32px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 12px;
+}
+
+.quiz-description-large {
+  font-size: 16px;
+  color: #6b7280;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+.quiz-stats-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 40px;
+}
+
+.stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.quiz-start-button-container {
+  width: 100%;
+  max-width: 400px;
+}
+
+.start-quiz-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 32px;
+  background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
+}
+
+.start-quiz-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(236, 72, 153, 0.4);
+}
+
+.start-quiz-btn:active {
+  transform: translateY(0);
+}
+
+/* Active Quiz View */
+.quiz-active-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding-bottom: 20px;
+}
+
+.quiz-progress-header {
+  margin-bottom: 32px;
+}
+
+.quiz-progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.quiz-progress-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.quiz-progress-bar-container {
+  width: 100%;
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.quiz-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #009688 0%, #00897b 100%);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.quiz-question-section {
+  flex: 1;
+}
+
+.quiz-question-text {
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 24px;
+  line-height: 1.4;
+}
+
+.quiz-options-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.quiz-option-card {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 16px 20px;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  font-size: 15px;
+  color: #374151;
+  position: relative;
+}
+
+.quiz-option-card:hover:not(:disabled) {
+  border-color: #009688;
+  background-color: #f0fdfa;
+  transform: translateX(4px);
+}
+
+.quiz-option-card:disabled {
+  cursor: not-allowed;
+}
+
+.quiz-option-card.selected {
+  border-color: #009688;
+  background-color: #e0f2f1;
+}
+
+.quiz-option-card.correct {
+  background-color: #d1fae5;
+  border-color: #10b981;
+  color: #065f46;
+}
+
+.quiz-option-card.incorrect {
+  background-color: #fee2e2;
+  border-color: #ef4444;
+  color: #991b1b;
+}
+
+.quiz-option-label {
+  font-weight: 600;
+  margin-right: 12px;
+  min-width: 32px;
+}
+
+.quiz-option-text {
+  flex: 1;
+  text-align: left;
+}
+
+.quiz-option-icon {
+  width: 20px;
+  height: 20px;
+  margin-left: 12px;
+}
+
+.quiz-option-icon-correct {
+  color: #10b981;
+}
+
+.quiz-option-icon-incorrect {
+  color: #ef4444;
+}
+
+/* Quiz Feedback Footer */
+.quiz-feedback-bar-container {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  padding-top: 24px;
+  z-index: 10;
+}
+
+.quiz-feedback-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 30px;
+  border-radius: 12px;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.quiz-feedback-bar.correct {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border: 2px solid #10b981;
+}
+
+.quiz-feedback-bar.incorrect {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border: 2px solid #ef4444;
+}
+
+.quiz-feedback-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex: 1;
+}
+
+.quiz-feedback-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.quiz-feedback-text {
+  flex: 1;
+}
+
+.quiz-feedback-message {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #065f46;
+}
+
+.quiz-feedback-bar.incorrect .quiz-feedback-message {
+  color: #991b1b;
+}
+
+.quiz-feedback-explanation {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #047857;
+}
+
+.quiz-feedback-bar.incorrect .quiz-feedback-explanation {
+  color: #7f1d1d;
+}
+
+.quiz-feedback-next-btn {
+  display: flex;
+  align-items: center;
+  padding: 12px 24px;
+  background: white;
+  border: 2px solid currentColor;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #065f46;
+}
+
+.quiz-feedback-bar.incorrect .quiz-feedback-next-btn {
+  color: #991b1b;
+}
+
+.quiz-feedback-next-btn:hover {
+  background: rgba(255, 255, 255, 0.9);
+  transform: translateX(2px);
+}
+
+/* Quiz Results Screen */
+.quiz-results-container {
+  padding: 40px 20px;
+}
+
+.quiz-results-score {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.quiz-results-emoji {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.quiz-results-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 8px;
+}
+
+.quiz-results-percentage {
+  font-size: 48px;
+  font-weight: 700;
+  color: #009688;
+  margin-top: 8px;
+}
+
+.quiz-results-breakdown {
+  margin-bottom: 32px;
+}
+
+.quiz-results-breakdown-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 20px;
+}
+
+.quiz-results-questions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.quiz-results-question {
+  padding: 20px;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.quiz-results-question.correct {
+  border-color: #10b981;
+  background: #f0fdfa;
+}
+
+.quiz-results-question.incorrect {
+  border-color: #ef4444;
+  background: #fef2f2;
+}
+
+.quiz-results-question-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.quiz-results-question-number {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.quiz-results-question-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 12px;
+}
+
+.quiz-results-question-details {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.quiz-results-answer {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.quiz-results-answer.correct {
+  color: #065f46;
+}
+
+.quiz-results-answer.incorrect {
+  color: #991b1b;
+}
+
+.quiz-results-correct-answer {
+  margin-left: 8px;
+  color: #6b7280;
+  font-weight: 400;
+}
+
+.quiz-results-explanation {
+  font-size: 14px;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.quiz-results-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.quiz-results-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.quiz-results-btn-primary {
+  background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
+  color: white;
+}
+
+.quiz-results-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
+}
+
+.quiz-results-btn-secondary {
+  background: white;
+  color: #374151;
+  border: 2px solid #e5e7eb;
+}
+
+.quiz-results-btn-secondary:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
 }

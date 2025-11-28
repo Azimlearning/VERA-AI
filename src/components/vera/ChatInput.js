@@ -3,8 +3,10 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaPaperPlane, FaTimes, FaStop } from 'react-icons/fa';
+import { FaPaperPlane, FaTimes, FaStop, FaPaperclip } from 'react-icons/fa';
 import AgentPickerButton from './AgentPickerButton';
+import { storage } from '../../lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 /**
  * ChatInput Component
@@ -31,7 +33,9 @@ export default function ChatInput({
   placeholder = 'Type your question here...',
   className = '',
   selectedAgent = null,
-  onAgentSelect = null
+  onAgentSelect = null,
+  onFileUpload = null,
+  isUploading = false
 }) {
   const [showCommands, setShowCommands] = useState(false);
   const [commandFilter, setCommandFilter] = useState('');
@@ -111,11 +115,205 @@ export default function ChatInput({
     }
   };
 
+  const fileInputRef = useRef(null);
+
+  const handleAttachmentClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const fileExt = file.name.split('.').pop().toLowerCase();
+    const isImage = file.type.startsWith('image/');
+    const isDocument = ['pdf', 'docx', 'doc', 'txt', 'rtf', 'odt'].includes(fileExt);
+
+    // Validate file type based on selected agent
+    if (selectedAgent?.id === 'visual' && !isImage) {
+      alert('Please select an image file (JPG, PNG, GIF, WebP)');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    } else if (selectedAgent?.id === 'meetings' && !isDocument) {
+      alert('Please select a valid document file (PDF, DOCX, DOC, TXT, RTF, or ODT)');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    } else if (!selectedAgent || (selectedAgent.id !== 'meetings' && selectedAgent.id !== 'visual')) {
+      if (!onFileUpload) {
+        alert('Please select the Meetings Agent or Visual Agent to upload files');
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        return;
+      }
+    }
+
+    // Validate file size (10MB limit for documents, 5MB for images)
+    const maxSize = isImage ? 5 * 1024 * 1024 : 10 * 1024 * 1024; // 5MB for images, 10MB for documents
+    if (file.size > maxSize) {
+      alert(`File size must be less than ${isImage ? '5MB' : '10MB'}`);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    // Handle image uploads for visual agent
+    if (selectedAgent?.id === 'visual' && isImage) {
+      try {
+        // Convert image to base64 data URL for immediate use
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const imageDataUrl = e.target.result;
+          if (onFileUpload) {
+            onFileUpload({ 
+              status: 'success', 
+              progress: 100, 
+              fileName: file.name,
+              imageUrl: imageDataUrl,
+              fileType: 'image'
+            });
+          }
+        };
+        reader.onerror = () => {
+          if (onFileUpload) {
+            onFileUpload({ 
+              status: 'error', 
+              error: 'Failed to read image file',
+              fileName: file.name 
+            });
+          }
+        };
+        reader.readAsDataURL(file);
+        
+        // Clear file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        return; // Exit early for image uploads
+      } catch (error) {
+        console.error('Error processing image:', error);
+        if (onFileUpload) {
+          onFileUpload({ 
+            status: 'error', 
+            error: error.message || 'Failed to process image',
+            fileName: file.name 
+          });
+        }
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        return;
+      }
+    }
+
+    try {
+      // Upload file to Firebase Storage
+      const filename = `meetingFiles/${Date.now()}_${file.name}`;
+      const storageRef = ref(storage, filename);
+      
+      // Show upload progress if callback is provided
+      if (onFileUpload) {
+        onFileUpload({ status: 'uploading', progress: 0, fileName: file.name });
+      }
+
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+      
+      console.log('[File Upload] File uploaded successfully:', {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: fileExt,
+        downloadURL: downloadURL,
+        storagePath: filename
+      });
+
+      // Process file to extract text
+      if (onFileUpload) {
+        onFileUpload({ status: 'processing', progress: 50, fileName: file.name });
+      }
+
+      const functionUrl = process.env.NEXT_PUBLIC_PROCESS_MEETING_FILE_URL || 'https://us-central1-systemicshiftv2.cloudfunctions.net/processMeetingFile';
+      
+      const requestBody = {
+        fileUrl: downloadURL,
+        fileName: file.name,
+        fileType: fileExt
+      };
+      
+      console.log('[File Upload] Calling processMeetingFile with:', requestBody);
+      
+      const processResponse = await fetch(functionUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+      
+      console.log('[File Upload] Process response status:', processResponse.status, processResponse.statusText);
+
+      if (!processResponse.ok) {
+        const errorData = await processResponse.json().catch(() => ({ error: 'Failed to process file' }));
+        throw new Error(errorData.error || errorData.message || 'Failed to process file');
+      }
+
+      const processData = await processResponse.json();
+      
+      console.log('[File Upload] Process response data:', {
+        success: processData.success,
+        hasExtractedText: !!processData.extractedText,
+        extractedTextLength: processData.extractedText?.length || 0,
+        error: processData.error,
+        message: processData.message
+      });
+      
+      // Check if extraction was successful and text is not empty
+      if (processData.extractedText && processData.extractedText.trim().length > 0) {
+        // If meeting agent is selected, automatically send the extracted text
+        if (selectedAgent?.id === 'meetings' && onFileUpload) {
+          onFileUpload({ 
+            status: 'success', 
+            progress: 100, 
+            fileName: file.name,
+            extractedText: processData.extractedText 
+          });
+        } else if (onFileUpload) {
+          // Otherwise, just notify parent component
+          onFileUpload({ 
+            status: 'success', 
+            progress: 100, 
+            fileName: file.name,
+            extractedText: processData.extractedText 
+          });
+        }
+      } else {
+        // Check if there's an error message from the server
+        const errorMsg = processData.error || processData.message || 'No text could be extracted from the file. The file may be empty, corrupted, or in an unsupported format.';
+        throw new Error(errorMsg);
+      }
+    } catch (error) {
+      console.error('Error uploading/processing file:', error);
+      const errorMessage = error.message || 'Failed to upload or process file. Please try again.';
+      alert(`Failed to upload or process file: ${errorMessage}`);
+      if (onFileUpload) {
+        onFileUpload({ status: 'error', error: errorMessage, fileName: file.name });
+      }
+    } finally {
+      // Clear file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   return (
     <div className={`relative ${className}`}>
-      {/* Gemini Style Input Wrapper */}
+      {/* Command Center Input Wrapper */}
       <div className="chat-input-wrapper">
-        {/* Text Area */}
+        {/* Row 1: Text Area (Top) */}
         <textarea
           ref={inputRef}
           value={value}
@@ -139,37 +337,60 @@ export default function ChatInput({
           }}
         />
 
-        {/* Footer Toolbar */}
-        <div className="chat-input-footer">
-          {/* Left: Tools Button (Agent Picker) */}
-          <div className="footer-left" style={{ position: 'relative' }}>
+        {/* Row 2: Control Deck (Bottom) */}
+        <div className="input-footer">
+          {/* Footer Left: Attachment Button */}
+          <div className="footer-left">
+            <button
+              type="button"
+              className="attach-btn"
+              onClick={handleAttachmentClick}
+              title="Upload Document"
+              disabled={isLoading || isUploading}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+              </svg>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={selectedAgent?.id === 'visual' 
+                ? "image/*" 
+                : selectedAgent?.id === 'meetings'
+                ? ".pdf,.docx,.txt,.doc,.rtf,.odt"
+                : ".pdf,.docx,.txt,.doc,.rtf,.odt,image/*"}
+              onChange={handleFileChange}
+              className="hidden"
+              disabled={isLoading || isUploading}
+            />
+          </div>
+
+          {/* Footer Right: Agent Pill & Send Button */}
+          <div className="footer-right">
+            {/* Agent Pill Selector */}
             {onAgentSelect ? (
-              <div style={{ display: 'inline-block' }}>
+              <div style={{ position: 'relative' }}>
                 <AgentPickerButton
                   selectedAgent={selectedAgent}
                   onAgentSelect={onAgentSelect}
+                  pillStyle={true}
                 />
               </div>
             ) : (
-              <button className="tool-btn">
-                <span className="plus-icon">+</span>
-                <span>Tools</span>
+              <button className="agent-pill-btn" disabled>
+                <span className="agent-icon">🤖</span>
+                <span className="agent-name">Vera (Default)</span>
               </button>
             )}
-          </div>
-
-          {/* Right: Model Selector & Send Button */}
-          <div className="footer-right" style={{ display: 'flex', alignItems: 'center' }}>
-            <button className="model-selector-btn">
-              {selectedAgent ? selectedAgent.name : 'Vera'} (Default) <span className="arrow-down">▼</span>
-            </button>
             
+            {/* Send Button (Circle) */}
             {isLoading ? (
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={onStop}
-                className="send-btn-filled"
+                className="send-btn-circle"
                 style={{ background: '#dc2626' }}
                 title="Stop generation"
               >
@@ -181,10 +402,13 @@ export default function ChatInput({
                 whileTap={{ scale: 0.95 }}
                 onClick={handleSubmit}
                 disabled={!value.trim()}
-                className="send-btn-filled"
+                className="send-btn-circle"
                 title="Send message"
               >
-                ➤
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="22" y1="2" x2="11" y2="13"></line>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
               </motion.button>
             )}
           </div>

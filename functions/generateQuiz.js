@@ -3,6 +3,8 @@
 const { generateWithFallback } = require("./aiHelper");
 const { ChatbotRAGRetriever } = require("./chatbotRAGRetriever");
 const { sanitizePromptInput, detectPromptInjection, buildSecurityNotice } = require("./promptSecurity");
+const { buildPrompt, buildDomainContext, loadPromptFromFile } = require("./promptTemplates");
+const { formatRAGContext, buildJSONSchemaSpec } = require("./promptHelpers");
 
 function createRequestId(prefix = 'quiz') {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
@@ -162,9 +164,72 @@ function createGenerateQuizHandler(geminiApiKey, openRouterApiKey) {
           console.log(`${logPrefix} Generating quiz from user content (${sanitizedContent.length} chars)`);
         }
 
-        // Build the quiz generation prompt
-        const systemicShiftsContext = `
-PETRONAS Upstream is undergoing a transformation through "Systemic Shifts" - strategic changes in mindset, behavior, and operations to achieve PETRONAS 2.0 vision by 2035. Key areas include:
+        // Format RAG context if available
+        let formattedRAGContext = '';
+        if (mode === 'knowledge-base' && retrievedDocs && retrievedDocs.length > 0) {
+          const { context } = formatRAGContext(retrievedDocs, {
+            maxTokens: 1500,
+            includeSimilarity: true,
+            includeSource: true
+          });
+          formattedRAGContext = context;
+        }
+
+        // Define quiz JSON schema
+        const quizJSONSchema = {
+          type: "object",
+          required: ["title", "description", "questions"],
+          properties: {
+            title: { type: "string", description: "Descriptive quiz title based on content" },
+            description: { type: "string", description: "Brief description of what the quiz covers" },
+            questions: {
+              type: "array",
+              description: `Array of exactly ${questionCount} question objects`,
+              items: {
+                type: "object",
+                required: ["question", "options", "correctAnswer", "explanation"],
+                properties: {
+                  question: { type: "string", description: "Clear, specific question text" },
+                  options: {
+                    type: "object",
+                    required: ["a", "b", "c", "d"],
+                    properties: {
+                      a: { type: "string" },
+                      b: { type: "string" },
+                      c: { type: "string" },
+                      d: { type: "string" }
+                    }
+                  },
+                  correctAnswer: { type: "string", description: "One of: a, b, c, or d" },
+                  explanation: { type: "string", description: "Clear explanation (2-3 sentences) of why the answer is correct" }
+                }
+              }
+            }
+          }
+        };
+
+        // Format retrieved docs for template
+        const retrievedDocsText = mode === 'knowledge-base' && retrievedDocs && retrievedDocs.length > 0
+          ? retrievedDocs.map((doc, idx) => {
+              const score = doc.similarity ? ` (similarity: ${(doc.similarity * 100).toFixed(1)}%)` : '';
+              return `Document ${idx + 1}: "${doc.title}"${score}`;
+            }).join('\n')
+          : '';
+
+        // Build domain context section
+        const domainContextSection = mode === 'knowledge-base'
+          ? `<domain_context>
+PETRONAS Upstream Operational Context (PRIMARY):
+- Supporting PETRONAS Upstream operations, initiatives, and employee engagement
+- Focus on operational excellence, production efficiency, safety, and strategic initiatives
+- Understanding of upstream operations, asset management, and organizational culture
+
+PETRONAS 2.0 and Systemic Shifts (SUPPORTING KNOWLEDGE):
+Goal: PETRONAS 2.0 by 2035
+Key Shifts: Portfolio High-Grading, Deliver Advantaged Barrels
+Mindsets: More Risk Tolerant, Commercial Savvy, Growth Mindset
+
+Systemic Shifts Areas:
 - Portfolio High-Grading
 - Deliver Advantaged Barrels
 - Operational Excellence
@@ -173,55 +238,51 @@ PETRONAS Upstream is undergoing a transformation through "Systemic Shifts" - str
 - Innovation and Technology
 - People and Culture
 - Safety and Risk Management
-`;
+</domain_context>`
+          : '';
 
-        const quizPrompt = `You are an expert quiz creator for PETRONAS Upstream content. Generate a comprehensive quiz based on the provided content.
+        const knowledgeBaseUsage = mode === 'knowledge-base'
+          ? "CRITICAL: This knowledge base content is the PRIMARY source of information. Create questions based on this content."
+          : '';
 
-${mode === 'knowledge-base' ? '### Source Content (from Knowledge Base):' : '### Source Content (User Provided):'}
-${sourceContent}
-
-### Instructions:
-1. Create exactly ${questionCount} multiple-choice questions based on the content above
-2. Each question should have:
-   - A clear, specific question
-   - 4 answer options (A, B, C, D)
-   - One correct answer
-   - A brief explanation (2-3 sentences) explaining why the answer is correct
-
-3. Questions should:
-   - Test understanding of key concepts, facts, and details
-   - Cover different aspects of the content
-   - Be appropriate for professional/educational context
-   - Avoid trivial or overly obvious questions
-
-4. Format your response as a JSON object with this exact structure:
-{
-  "title": "Quiz Title (descriptive, based on content)",
-  "description": "Brief description of what this quiz covers",
-  "questions": [
-    {
-      "question": "Question text here",
-      "options": {
-        "a": "Option A text",
-        "b": "Option B text",
-        "c": "Option C text",
-        "d": "Option D text"
-      },
-      "correctAnswer": "a",
-      "explanation": "Explanation of why this answer is correct"
-    }
-  ]
-}
-
-IMPORTANT:
-- Return ONLY valid JSON, no markdown formatting, no code blocks
-- Ensure all ${questionCount} questions are included
-- Make sure correctAnswer is one of: "a", "b", "c", or "d"
-- Each explanation should be clear and educational
-
-${mode === 'knowledge-base' ? systemicShiftsContext : ''}
-
-Generate the quiz now:`;
+        // Load quiz prompt from file
+        let quizPrompt = loadPromptFromFile('quiz-prompt.txt', {
+          domainContextSection: domainContextSection,
+          ragContext: mode === 'knowledge-base' ? (formattedRAGContext || sourceContent || '') : '',
+          retrievedDocs: retrievedDocsText,
+          knowledgeBaseUsage: knowledgeBaseUsage,
+          questionCount: questionCount,
+          outputFormat: buildJSONSchemaSpec(quizJSONSchema),
+          sourceContentLabel: mode === 'knowledge-base' ? 'Source Content (from Knowledge Base):' : 'Source Content (User Provided):',
+          sourceContent: sourceContent
+        });
+        
+        // Fallback to buildPrompt if file loading fails
+        if (!quizPrompt) {
+          quizPrompt = buildPrompt({
+            role: "Expert Quiz Creator",
+            roleDescription: "You are an expert quiz creator specializing in educational content for PETRONAS Upstream. Your task is to create comprehensive, well-structured quizzes that test understanding and reinforce learning.",
+            roleContext: "You create quizzes for employee education and engagement, ensuring questions are appropriate for professional/educational context.",
+            domainContext: mode === 'knowledge-base',
+            additionalDomainContext: mode === 'knowledge-base' ? buildDomainContext() + "\n\nSystemic Shifts Areas:\n- Portfolio High-Grading\n- Deliver Advantaged Barrels\n- Operational Excellence\n- Digital Transformation\n- Sustainability and Decarbonisation\n- Innovation and Technology\n- People and Culture\n- Safety and Risk Management" : undefined,
+            knowledgeBaseContext: mode === 'knowledge-base' ? formattedRAGContext || sourceContent : undefined,
+            retrievedDocs: mode === 'knowledge-base' ? retrievedDocs || [] : undefined,
+            knowledgeBaseOptions: mode === 'knowledge-base' ? {
+              isPrimarySource: true,
+              showSimilarityScores: true,
+              includeFallback: false
+            } : undefined,
+            instructions: [
+              `Create exactly ${questionCount} multiple-choice questions based on the provided content.`,
+              "Each question must have: (1) Clear, specific question, (2) 4 answer options (A, B, C, D), (3) One correct answer, (4) Brief explanation (2-3 sentences) explaining why the answer is correct.",
+              "Questions should: Test understanding of key concepts, facts, and details; Cover different aspects of the content; Be appropriate for professional/educational context; Avoid trivial or overly obvious questions.",
+              "Ensure questions are well-distributed across the content, testing different levels of understanding (recall, comprehension, application).",
+              "Each explanation should be clear, educational, and help reinforce learning."
+            ],
+            outputFormat: buildJSONSchemaSpec(quizJSONSchema),
+            task: `Generate a comprehensive quiz based on the following content:\n\n${mode === 'knowledge-base' ? 'Source Content (from Knowledge Base):' : 'Source Content (User Provided):'}\n${sourceContent}\n\nGenerate the quiz now with exactly ${questionCount} questions.`
+          });
+        }
 
         console.log(`${logPrefix} Calling AI to generate quiz...`);
         const aiStart = Date.now();

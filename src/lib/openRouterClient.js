@@ -2,6 +2,8 @@
 // OpenRouter API Client for Try Pages
 // Uses the models specified for different input/output modalities
 
+import { AI_MODEL_CONSTANTS } from './aiModelConstants';
+
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1';
 // Alternative: Some models might use openrouter.co
 // const OPENROUTER_API_URL_ALT = 'https://openrouter.co/api/v1';
@@ -21,43 +23,44 @@ function getApiKey() {
 
 /**
  * Models for different input modalities
+ * Built from shared constants for consistency
  */
 export const OPENROUTER_MODELS = {
   // File input (text-based files)
   file: {
-    primary: 'anthropic/claude-opus-4.5',
-    fallback: 'openai/gpt-5.1'
+    primary: AI_MODEL_CONSTANTS.MODALITY_MODELS.FILE.PRIMARY,
+    fallback: AI_MODEL_CONSTANTS.MODALITY_MODELS.FILE.FALLBACK
   },
   // Image input
   image: {
-    primary: 'black-forest-labs/flux.2-flex',
-    fallback: 'google/gemini-3-pro-preview',
-    tertiary: 'anthropic/claude-opus-4.5'
+    primary: AI_MODEL_CONSTANTS.MODALITY_MODELS.IMAGE.PRIMARY,
+    fallback: AI_MODEL_CONSTANTS.MODALITY_MODELS.IMAGE.FALLBACK,
+    tertiary: AI_MODEL_CONSTANTS.MODALITY_MODELS.IMAGE.TERTIARY
   },
   // Image generation
   imageGeneration: {
-    primary: 'black-forest-labs/flux.2-pro',
-    fallback: 'black-forest-labs/flux.2-flex'
+    primary: AI_MODEL_CONSTANTS.MODALITY_MODELS.IMAGE_GENERATION.PRIMARY,
+    fallback: AI_MODEL_CONSTANTS.MODALITY_MODELS.IMAGE_GENERATION.FALLBACK
   },
   // Text input
   text: {
-    primary: 'black-forest-labs/flux.2-flex',
-    fallback: 'openai/gpt-5.1'
+    primary: AI_MODEL_CONSTANTS.MODALITY_MODELS.TEXT.PRIMARY,
+    fallback: AI_MODEL_CONSTANTS.MODALITY_MODELS.TEXT.FALLBACK
   },
   // Audio input
   audio: {
-    primary: 'mistralai/voxtral-small-24b-2507',
-    fallback: 'openai/gpt-4o-audio-preview'
+    primary: AI_MODEL_CONSTANTS.MODALITY_MODELS.AUDIO.PRIMARY,
+    fallback: AI_MODEL_CONSTANTS.MODALITY_MODELS.AUDIO.FALLBACK
   },
   // Text output
   textOutput: {
-    primary: 'anthropic/claude-opus-4.5',
-    fallback: 'openai/gpt-5.1'
+    primary: AI_MODEL_CONSTANTS.MODALITY_MODELS.TEXT_OUTPUT.PRIMARY,
+    fallback: AI_MODEL_CONSTANTS.MODALITY_MODELS.TEXT_OUTPUT.FALLBACK
   },
   // Embeddings
   embeddings: {
-    primary: 'thenlper/gte-base',
-    fallback: 'openai/gpt-5.1'
+    primary: AI_MODEL_CONSTANTS.MODALITY_MODELS.EMBEDDINGS.PRIMARY,
+    fallback: AI_MODEL_CONSTANTS.MODALITY_MODELS.EMBEDDINGS.FALLBACK
   }
 };
 

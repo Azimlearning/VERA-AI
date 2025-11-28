@@ -2,7 +2,6 @@
 
 const { generateWithFallback } = require('./aiHelper');
 const { ChatbotRAGRetriever } = require('./chatbotRAGRetriever');
-const { generateEmbedding, cosineSimilarity } = require('./embeddingsHelper');
 const admin = require('firebase-admin');
 
 function getDb() {
@@ -11,10 +10,13 @@ function getDb() {
 
 /**
  * Feature A: Generate Meeting Summary
+ * @param {string} content - Meeting content
+ * @param {object} keys - API keys
+ * @param {string} ragContext - Optional RAG context from knowledge base
  */
-async function generateMeetingSummary(content, keys) {
+async function generateMeetingSummary(content, keys, ragContext = '') {
   try {
-    const prompt = `Summarize this meeting in 3-5 bullet points covering:
+    const basePrompt = `Summarize this meeting in 3-5 bullet points covering:
 - Key decisions made
 - Main topics discussed
 - Important outcomes
@@ -22,6 +24,17 @@ async function generateMeetingSummary(content, keys) {
 
 Meeting content:
 ${content.substring(0, 8000)}`;
+
+    // Enhance prompt with RAG context if available
+    const prompt = ragContext
+      ? `${basePrompt}
+
+--- Relevant Organizational Context (from Knowledge Base) ---
+${ragContext}
+--- End Context ---
+
+Use the organizational context above to provide more informed and aligned insights. Reference relevant initiatives, strategies, or previous decisions when relevant.`
+      : basePrompt;
 
     const summaryResult = await generateWithFallback(prompt, keys);
     const summary = summaryResult.text || summaryResult; // Handle both new and old format
@@ -61,51 +74,41 @@ ${meetingContent.substring(0, 6000)}`;
  */
 async function checkAlignment(meetingContent, meetingTitle, keys) {
   try {
-    // Use RAG to find related meetings
+    // Use RAG to find related meetings and knowledge base context
     const retriever = new ChatbotRAGRetriever();
     const query = `${meetingTitle}: ${meetingContent.substring(0, 500)}`;
     
-    // Search in meetings collection
-    const db = getDb();
-    const meetingsSnapshot = await db.collection('meetings')
-      .where('embedding', '!=', null)
-      .limit(50)
-      .get();
-
-    if (meetingsSnapshot.empty) {
-      return [];
-    }
-
-    // Get query embedding
-    const queryEmbedding = await generateEmbedding(query, keys);
-    
-    // Calculate similarities
-    const relatedMeetings = [];
-    for (const doc of meetingsSnapshot.docs) {
-      const meetingData = doc.data();
-      if (meetingData.embedding && Array.isArray(meetingData.embedding)) {
-        const similarity = cosineSimilarity(queryEmbedding, meetingData.embedding);
-        if (similarity > 0.7) {
-          relatedMeetings.push({
-            id: doc.id,
-            title: meetingData.title,
-            content: meetingData.content,
-            similarity
-          });
-        }
+    // Search both meetings and knowledge base for comprehensive context
+    const relatedDocs = await retriever.retrieveRelevantDocuments(
+      query,
+      keys,
+      3, // Get top 3 related documents
+      null, // No category filter
+      {
+        collections: ['meetings', 'knowledgeBase'], // Search both collections
+        queryType: 'meeting',
+        minSimilarity: 0.5 // Threshold for related meetings
       }
-    }
+    );
 
-    // Sort by similarity
-    relatedMeetings.sort((a, b) => b.similarity - a.similarity);
-    const topRelated = relatedMeetings.slice(0, 3);
-
-    if (topRelated.length === 0) {
+    if (relatedDocs.length === 0) {
       return [];
     }
 
-    // Check for conflicts
-    const contextText = topRelated.map(m => `[${m.title}]\n${m.content.substring(0, 1000)}`).join('\n\n');
+    // Filter to get meetings (for conflict checking) and KB context (for domain knowledge)
+    const relatedMeetings = relatedDocs.filter(doc => doc.collection === 'meetings');
+    const kbContext = relatedDocs.filter(doc => doc.collection === 'knowledgeBase');
+
+    if (relatedMeetings.length === 0) {
+      return []; // No related meetings found
+    }
+
+    // Build context from related meetings and KB
+    const meetingsContext = relatedMeetings.map(m => `[${m.title}]\n${m.content.substring(0, 1000)}`).join('\n\n');
+    const kbContextText = kbContext.length > 0 
+      ? `\n\nRelevant Knowledge Base Context:\n${retriever.buildContextString(kbContext, { maxTokens: 300 })}\n`
+      : '';
+    const contextText = meetingsContext + kbContextText;
     const prompt = `Analyze if decisions in this new meeting contradict previous meetings.
 
 New Meeting:
@@ -148,17 +151,34 @@ Format: {"warnings": [{"type": "Conflict Type", "message": "Description"}]}`;
 
 /**
  * Feature D: Detect Action Items and Zombie Tasks
+ * @param {string} meetingContent - Meeting content
+ * @param {object} keys - API keys
+ * @param {string} ragContext - Optional RAG context from knowledge base
  */
-async function detectActionItems(meetingContent, keys) {
+async function detectActionItems(meetingContent, keys, ragContext = '') {
   try {
-    const prompt = `Extract all action items from this meeting. For each action item, identify:
+    const basePrompt = `Extract all action items from this meeting. For each action item, identify:
 - The task description
 - The owner/assignee (if mentioned)
 - The due date (if mentioned)
 - The status (if mentioned)
 
 Meeting content:
-${meetingContent.substring(0, 8000)}
+${meetingContent.substring(0, 8000)}`;
+
+    // Enhance prompt with RAG context if available
+    const prompt = ragContext
+      ? `${basePrompt}
+
+--- Relevant Organizational Context (from Knowledge Base) ---
+${ragContext}
+--- End Context ---
+
+Use the organizational context to better identify action items and understand their context within broader initiatives.`
+
+      : basePrompt;
+
+    const fullPrompt = `${prompt}
 
 Return a JSON object with this structure:
 {
@@ -175,7 +195,7 @@ Return a JSON object with this structure:
 
 If no action items found, return empty arrays.`;
 
-    const responseResult = await generateWithFallback(prompt, keys, true);
+    const responseResult = await generateWithFallback(fullPrompt, keys, true);
     const response = responseResult.text || responseResult; // Handle both new and old format
     
     let actionItems = [];
@@ -225,55 +245,43 @@ If no action items found, return empty arrays.`;
  */
 async function chatWithOrg(query, keys) {
   try {
-    const db = getDb();
+    // Use unified RAG to search both meetings and knowledge base
+    const retriever = new ChatbotRAGRetriever();
     
-    // Get all meetings with embeddings
-    const meetingsSnapshot = await db.collection('meetings')
-      .where('embedding', '!=', null)
-      .limit(100)
-      .get();
-
-    if (meetingsSnapshot.empty) {
-      return {
-        answer: 'No meetings found in the organization. Please create some meetings first.',
-        sources: []
-      };
-    }
-
-    // Generate query embedding
-    const queryEmbedding = await generateEmbedding(query, keys);
-
-    // Calculate similarities
-    const meetingsWithScores = [];
-    for (const doc of meetingsSnapshot.docs) {
-      const meetingData = doc.data();
-      if (meetingData.embedding && Array.isArray(meetingData.embedding)) {
-        const similarity = cosineSimilarity(queryEmbedding, meetingData.embedding);
-        meetingsWithScores.push({
-          id: doc.id,
-          title: meetingData.title,
-          content: meetingData.content,
-          summary: meetingData.summary,
-          similarity
-        });
+    // Search both collections for comprehensive answers
+    const relatedDocs = await retriever.retrieveRelevantDocuments(
+      query,
+      keys,
+      5, // Get top 5 documents
+      null, // No category filter
+      {
+        collections: ['meetings', 'knowledgeBase'], // Search both collections
+        queryType: 'meeting',
+        minSimilarity: 0.5
       }
-    }
+    );
 
-    // Sort by similarity and get top 5
-    meetingsWithScores.sort((a, b) => b.similarity - a.similarity);
-    const topMeetings = meetingsWithScores.slice(0, 5).filter(m => m.similarity > 0.5);
-
-    if (topMeetings.length === 0) {
+    if (relatedDocs.length === 0) {
       return {
-        answer: 'I could not find relevant meetings to answer your question. Try rephrasing or check if meetings exist.',
+        answer: 'I could not find relevant information to answer your question. Try rephrasing or check if meetings/knowledge base content exists.',
         sources: []
       };
     }
 
-    // Build context from top meetings
-    const contextText = topMeetings.map(m => 
-      `[${m.title}]\n${m.summary || m.content.substring(0, 1000)}`
+    // Separate meetings and KB documents
+    const meetings = relatedDocs.filter(doc => doc.collection === 'meetings');
+    const kbDocs = relatedDocs.filter(doc => doc.collection === 'knowledgeBase');
+
+    // Build context from both sources
+    const meetingsContext = meetings.map(m => 
+      `[Meeting: ${m.title}]\n${m.content.substring(0, 1000)}`
     ).join('\n\n');
+    
+    const kbContext = kbDocs.length > 0 
+      ? `\n\n[Knowledge Base Context]\n${retriever.buildContextString(kbDocs, { maxTokens: 500 })}\n`
+      : '';
+    
+    const contextText = meetingsContext + kbContext;
 
     const prompt = `You are an AI assistant that helps answer questions about organizational meetings.
 
@@ -290,7 +298,12 @@ Cite which meetings you're referencing.`;
 
     return {
       answer,
-      sources: topMeetings.map(m => ({ id: m.id, title: m.title }))
+      sources: relatedDocs.map(doc => ({ 
+        id: doc.id, 
+        title: doc.title,
+        collection: doc.collection,
+        similarity: doc.similarity
+      }))
     };
   } catch (error) {
     console.error('[MeetX AI] Error in chat with org:', error);
