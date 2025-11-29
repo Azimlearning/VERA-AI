@@ -1,6 +1,6 @@
-# VERA AI
+# VERA AI: RAG-Powered Intelligent Knowledge Base Assistant Platform
 
-An intelligent AI assistant designed specifically for PETRONAS Upstream, powered by advanced RAG (Retrieval-Augmented Generation) technology and specialized AI agents to accelerate workflows and provide expert knowledge.
+An enterprise-grade intelligent AI assistant platform designed specifically for PETRONAS Upstream, powered by advanced **Retrieval-Augmented Generation (RAG)** technology, **vector embeddings**, **knowledge base management**, and specialized AI agents to accelerate workflows and provide expert knowledge with citation-backed responses.
 
 ## Overview
 
@@ -43,11 +43,15 @@ VERA combines advanced AI capabilities with a specialized knowledge base to deli
 - **Authentication**: Firebase Auth
 - **Hosting**: Firebase Hosting / Vercel
 
-### AI Services
-- **LLM**: Google Gemini, OpenRouter
-- **Embeddings**: OpenAI, OpenRouter
-- **Image Generation**: Hugging Face Inference API
-- **Text-to-Speech**: Various TTS APIs
+### AI Services & Technologies
+- **RAG (Retrieval-Augmented Generation)**: Core technology for knowledge retrieval and citation-backed responses
+- **Vector Embeddings**: OpenAI text-embedding-3-large (3,072-dimensional vectors) for semantic search
+- **Vector Database**: Firestore-based knowledge base with cosine similarity search
+- **LLMs**: Google Gemini API, OpenRouter API for text generation and reasoning
+- **Computer Vision**: Gemini Vision API for image analysis and tagging
+- **Image Generation**: Local Stable Diffusion (PyTorch + Hugging Face Diffusers) for cost-effective image synthesis
+- **Text-to-Speech**: Multi-speaker TTS engines for podcast generation
+- **Predictive Analytics**: Prophet algorithm for forecasting and anomaly detection
 
 ### Development Tools
 - **Language**: JavaScript/TypeScript, Python
@@ -151,10 +155,12 @@ See `SETUP.md` for detailed setup instructions including:
 
 ## Documentation
 
+See `Documentation_files/` directory for comprehensive documentation:
 - `SETUP.md` - Detailed setup and configuration guide
 - `TESTING.md` - Testing procedures and checklist
-- `SITE_BREAKDOWN.md` - Full site architecture and API documentation
-- `Scripts_usage/README.md` - Utility scripts documentation
+- `DEPLOYMENT_GUIDE.md` - Complete deployment instructions
+- `FULL_DOCUMENTATION.md` - Full platform architecture and API documentation
+- `SIP_REPORT.md` - Student Industrial Project report
 
 ## Contributing
 
