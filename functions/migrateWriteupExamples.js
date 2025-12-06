@@ -76,7 +76,7 @@ async function migrateWriteupExamples(keys) {
         
         docData.embedding = embedding;
         docData.embeddingStatus = 'ready';
-        docData.embeddingModel = 'text-embedding-3-small';
+        docData.embeddingModel = 'openai/text-embedding-3-large'; // 3,072 dimensions per presentation requirements (OpenRouter format)
         docData.embeddingGeneratedAt = admin.firestore.FieldValue.serverTimestamp();
         
         // Add metadata from example structure

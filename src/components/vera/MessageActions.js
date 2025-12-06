@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FaSync, FaCopy, FaCheck, FaInfoCircle } from 'react-icons/fa';
+import { FaSync, FaCopy, FaCheck } from 'react-icons/fa';
 
 /**
  * MessageActions Component
@@ -16,8 +16,6 @@ import { FaSync, FaCopy, FaCheck, FaInfoCircle } from 'react-icons/fa';
 export default function MessageActions({ 
   onRegenerate, 
   content,
-  message,
-  onShowInfo,
   className = ''
 }) {
   const [copied, setCopied] = useState(false);
@@ -66,19 +64,6 @@ export default function MessageActions({
           </>
         )}
       </motion.button>
-      
-      {onShowInfo && message && (
-        <motion.button
-          whileHover={{ scale: 1.05, y: -1 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => onShowInfo(message)}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 hover:text-teal-600 bg-gray-100 hover:bg-teal-50 rounded-lg transition-all shadow-sm hover:shadow"
-          title="Show message info"
-        >
-          <FaInfoCircle className="w-3 h-3" />
-          <span>Info</span>
-        </motion.button>
-      )}
     </div>
   );
 }
