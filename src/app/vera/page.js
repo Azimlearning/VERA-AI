@@ -16,7 +16,6 @@ import MessageActions from '../../components/vera/MessageActions';
 import DeveloperSettings from '../../components/vera/DeveloperSettings';
 import TypingIndicator from '../../components/vera/TypingIndicator';
 import ScrollToBottom from '../../components/vera/ScrollToBottom';
-import MessageInfoPanel from '../../components/vera/MessageInfoPanel';
 import RightSidebar from '../../components/vera/RightSidebar';
 import SettingsMenu from '../../components/vera/SettingsMenu';
 import ArtifactPanel from '../../components/vera/ArtifactPanel';
@@ -106,7 +105,6 @@ export default function VeraPage() {
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [developerSettings, setDeveloperSettings] = useState(null);
-  const [selectedMessageInfo, setSelectedMessageInfo] = useState(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
   
   // Artifact Panel State
@@ -2544,6 +2542,8 @@ export default function VeraPage() {
                                   content={displayContent}
                                   isStreaming={isCurrentlyStreaming}
                                   streamingText={streamingText}
+                                  citations={msg.citations || []}
+                                  messageIndex={index}
                                 />
                               ) : (
                                 <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
@@ -2555,38 +2555,48 @@ export default function VeraPage() {
                                   animate={{ opacity: 1 }}
                                   transition={{ delay: 0.3 }}
                                   className="sources-section"
+                                  id={`sources-${index}`}
                                 >
                                   <span className="sources-label">Sources</span>
                                   <div className="sources-container">
-                                    {msg.citations.map((citation, idx) => (
-                                      <motion.a
-                                        key={idx}
-                                        href={citation.sourceUrl || '#'}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        initial={{ opacity: 0, scale: 0.9 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        transition={{ delay: 0.4 + idx * 0.05 }}
-                                        whileHover={{ scale: 1.02 }}
-                                        className="source-card"
-                                      >
-                                        <div className="source-icon">
-                                          <FaDatabase className="text-sm" />
-                                        </div>
-                                        <div className="source-text-wrapper">
-                                          <div className="source-title">
-                                            {citation.title}
-                                          </div>
-                                          {citation.sourceUrl && (
-                                            <div className="source-subtitle">
-                                              {citation.sourceUrl.length > 40 
-                                                ? citation.sourceUrl.substring(0, 40) + '...'
-                                                : citation.sourceUrl}
+                                    {msg.citations.map((citation, idx) => {
+                                      const citationNumber = citation.number || (idx + 1);
+                                      const citationId = `citation-${index}-${citationNumber}`;
+                                      return (
+                                        <motion.div
+                                          key={citation.id || `${index}-${idx}`}
+                                          id={citationId}
+                                          initial={{ opacity: 0, scale: 0.9 }}
+                                          animate={{ opacity: 1, scale: 1 }}
+                                          transition={{ delay: 0.4 + idx * 0.05 }}
+                                          className="source-card"
+                                        >
+                                          <div className="flex items-start gap-3">
+                                            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 font-semibold text-xs">
+                                              {citationNumber}
                                             </div>
-                                          )}
-                                        </div>
-                                      </motion.a>
-                                    ))}
+                                            <div className="flex-1 min-w-0">
+                                              <div className="source-title">
+                                                {citation.title}
+                                              </div>
+                                              {citation.sourceUrl && (
+                                                <a
+                                                  href={citation.sourceUrl}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="source-subtitle text-teal-600 hover:text-teal-700 hover:underline"
+                                                  onClick={(e) => e.stopPropagation()}
+                                                >
+                                                  {citation.sourceUrl.length > 50 
+                                                    ? citation.sourceUrl.substring(0, 50) + '...'
+                                                    : citation.sourceUrl}
+                                                </a>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </motion.div>
+                                      );
+                                    })}
                                   </div>
                                 </motion.div>
                               )}
@@ -2596,8 +2606,6 @@ export default function VeraPage() {
                               <MessageActions
                                 onRegenerate={() => handleRegenerate(index - 1)}
                                 content={msg.content}
-                                message={msg}
-                                onShowInfo={setSelectedMessageInfo}
                                 className="mt-2"
                               />
                             )}
@@ -2730,14 +2738,6 @@ export default function VeraPage() {
         onClose={() => setIsSettingsOpen(false)}
         onSettingsChange={setDeveloperSettings}
       />
-      
-      {/* Message Info Panel */}
-      {selectedMessageInfo && (
-        <MessageInfoPanel
-          message={selectedMessageInfo}
-          onClose={() => setSelectedMessageInfo(null)}
-        />
-      )}
       
       {/* Right Sidebar */}
       <RightSidebar

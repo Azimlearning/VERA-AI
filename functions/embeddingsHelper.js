@@ -19,10 +19,10 @@ const OPENROUTER_EMBEDDINGS_URL = 'https://openrouter.ai/api/v1/embeddings';
  * Generate embedding for a text using OpenAI or OpenRouter
  * @param {string} text - Text to generate embedding for
  * @param {object} keys - Object containing API keys { openai, openrouter }
- * @param {string} model - Model to use (default: text-embedding-3-small)
+ * @param {string} model - Model to use (default: openai/text-embedding-3-large for 3,072 dimensions)
  * @returns {Promise<number[]>} Vector embedding array
  */
-async function generateEmbedding(text, keys, model = 'text-embedding-3-small') {
+async function generateEmbedding(text, keys, model = 'openai/text-embedding-3-large') {
   if (!text || typeof text !== 'string' || text.trim().length === 0) {
     throw new Error('Text is required and must be non-empty');
   }

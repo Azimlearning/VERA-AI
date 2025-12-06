@@ -1,0 +1,62 @@
+# ============================================================================
+# VERA AI Platform - Environment Variables Template
+# ============================================================================
+# 
+# INSTRUCTIONS:
+# 1. Copy this content to a new file named: .env.local (in the root directory)
+# 2. Fill in all values with your actual Firebase configuration
+# 3. DO NOT commit .env.local to version control (it's in .gitignore)
+#
+# HOW TO GET THESE VALUES:
+# 1. Go to Firebase Console: https://console.firebase.google.com/
+# 2. Select your project: systemicshiftv2
+# 3. Click the gear icon (⚙️) → Project Settings
+# 4. Scroll down to "Your apps" section
+# 5. Click on the Web app icon (</>)
+# 6. Copy the configuration values from the firebaseConfig object
+#
+# ============================================================================
+
+# Firebase Configuration
+# Replace the placeholder values with your actual Firebase project credentials
+
+NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key_here
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=systemicshiftv2.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=systemicshiftv2
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=systemicshiftv2.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id_here
+NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id_here
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=your_measurement_id_here
+
+# ============================================================================
+# NOTES:
+# ============================================================================
+#
+# - All variables must start with NEXT_PUBLIC_ to be accessible in the browser
+# - The PROJECT_ID, AUTH_DOMAIN, and STORAGE_BUCKET are pre-filled based on
+#   the standard Firebase naming convention for project: systemicshiftv2
+# - You only need to replace: API_KEY, SENDER_ID, APP_ID, MEASUREMENT_ID
+# - After creating .env.local, restart your development server
+#
+# ============================================================================
+# SECURITY:
+# ============================================================================
+#
+# - Never commit .env.local to version control
+# - Never share your API keys publicly
+# - The .gitignore file already excludes .env.local
+# - These values are safe to use in the browser (they're meant to be public)
+# - Security is enforced by Firebase Security Rules, not by hiding these values
+#
+# ============================================================================
+
+# ============================================================================
+# QUICK COMMAND TO CREATE .env.local:
+# ============================================================================
+# Copy this file content to .env.local manually, or use PowerShell:
+# 
+# Copy-Item ENV_TEMPLATE.txt .env.local
+# 
+# Then edit .env.local with your actual Firebase values.
+# ============================================================================
+
