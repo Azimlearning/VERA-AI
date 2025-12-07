@@ -30,9 +30,11 @@ export default function ContentAgentTryPage() {
     setResults(null);
 
     try {
-      // Use submitStory flow - creates Firestore document which triggers analyzeStorySubmission
-      // The local Python service (local_image_generator.py) will then generate the image
-      const submitStoryUrl = 'https://submitstory-el2jwxb5bq-uc.a.run.app';
+      // Prefer local Next.js API route (returns storyId); allow override via env for prod
+      const primarySubmitUrl = process.env.NEXT_PUBLIC_SUBMIT_STORY_URL || '/api/submit-story';
+      const fallbackSubmitUrl = 'https://submitstory-el2jwxb5bq-uc.a.run.app';
+
+      const submitStoryUrl = primarySubmitUrl;
       
       // Create FormData for multipart/form-data (submitStory expects this format)
       const formData = new FormData();
@@ -55,10 +57,19 @@ export default function ContentAgentTryPage() {
       }
 
       const data = await response.json();
-      const storyId = data.storyId || data.id;
+      let storyId = data.storyId || data.id;
+
+      // Fallback: if no storyId from primary, try remote CF once
+      if (!storyId && submitStoryUrl === primarySubmitUrl) {
+        console.warn('[Content Agent] No story ID from primary API, retrying fallback URL');
+        const fallbackResponse = await fetch(fallbackSubmitUrl, { method: 'POST', body: formData });
+        const fallbackData = await fallbackResponse.json().catch(() => ({}));
+        storyId = fallbackData.storyId || fallbackData.id;
+      }
 
       if (!storyId) {
-        throw new Error('No story ID returned from submission');
+        console.error('[Content Agent] No story ID in response:', data);
+        throw new Error('No story ID returned from submission. Please check that the API route or fallback is reachable.');
       }
 
       // Set up Firestore listener to wait for content and/or image generation

@@ -548,11 +548,17 @@ class ChatbotRAGRetriever {
       const db = getDb();
       let allDocuments = [];
 
+      // Also search chunks if searching knowledgeBase
+      const searchChunks = options.includeChunks !== false && collectionList.includes('knowledgeBase');
+      if (searchChunks) {
+        collectionList.push('knowledgeBaseChunks');
+      }
+
       for (const collectionName of collectionList) {
         console.log(`[ChatbotRAG] Searching collection: ${collectionName}`);
         let collectionQuery = db.collection(collectionName);
         
-        if (collectionName === 'knowledgeBase' && categories && categories.length > 0) {
+        if ((collectionName === 'knowledgeBase' || collectionName === 'knowledgeBaseChunks') && categories && categories.length > 0) {
           collectionQuery = collectionQuery.where('category', 'in', categories);
         }
 
@@ -564,12 +570,20 @@ class ChatbotRAGRetriever {
         }
 
         console.log(`[ChatbotRAG] Found ${snapshot.size} documents in ${collectionName}`);
-        const collectionDocs = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ref: doc.ref,
-          data: doc.data(),
-          collection: collectionName
-        }));
+        const collectionDocs = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ref: doc.ref,
+            data: data,
+            collection: collectionName,
+            // Mark chunks with their parent info
+            isChunk: collectionName === 'knowledgeBaseChunks',
+            parentId: data.parentId || null,
+            chunkIndex: data.chunkIndex || null,
+            heading: data.heading || null
+          };
+        });
         
         allDocuments = allDocuments.concat(collectionDocs);
       }

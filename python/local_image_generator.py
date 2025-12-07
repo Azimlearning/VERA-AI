@@ -155,6 +155,17 @@ def compose_positive_prompt(base_prompt: str, descriptors: list) -> str:
     descriptor_text = ", ".join(descriptors[:8])
     return f"{base_prompt}. Emphasize {descriptor_text}. Keep spacing clean, corporate, and PETRONAS branded."
 
+
+def truncate_for_clip(text: str, max_tokens: int = 70) -> str:
+    """
+    CLIP text encoder effectively caps around 77 tokens. Trim prompts to avoid
+    runtime warnings and wasted compute.
+    """
+    words = text.split()
+    if len(words) <= max_tokens:
+        return text
+    return " ".join(words[:max_tokens])
+
 def categorize_generation_error(error: Exception) -> str:
     message = str(error).lower()
     if "out of memory" in message or "cuda" in message:
@@ -438,6 +449,9 @@ def process_story(doc_id: str, story_data: dict):
         else:
             logger.debug("RAG retriever not available, using base prompt")
         
+        # Ensure prompt stays within CLIP token budget (~77 tokens)
+        prompt = truncate_for_clip(prompt, max_tokens=70)
+    
         logger.info(f"Generating image for: {title}")
         logger.debug(f"Final prompt: {prompt[:150]}...")  # Log first 150 chars
         logger.debug(f"Negative prompt: {negative_prompt}")

@@ -32,20 +32,63 @@ If no text is found, return {"text": "", "lines": [], "language": "unknown"}`;
     ? `${ocrPrompt}\n\n--- Context ---\n${ragContext}\n--- End Context ---\n\nUse context to better understand the image content.`
     : ocrPrompt;
 
+  // Prefer direct OpenAI for vision OCR if available
+  if (keys.openai) {
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${keys.openai.trim()}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              { type: 'image_url', image_url: { url: imageUrl, detail: 'auto' } }
+            ]
+          }],
+          response_format: { type: 'json_object' }
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const resultText = data.choices?.[0]?.message?.content || '';
+        const jsonText = resultText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        const ocrResult = JSON.parse(jsonText);
+        return {
+          text: ocrResult.text || '',
+          lines: ocrResult.lines || [],
+          language: ocrResult.language || 'unknown'
+        };
+      }
+    } catch (error) {
+      console.warn('[extractOCRText] OpenAI vision OCR failed, falling back:', error.message);
+    }
+  }
+
+  // More reliable model list for OCR
   const modelsToTry = [
-    'google/gemini-2.5-flash-image-preview',
+    'openai/gpt-4o-mini',
     'openai/gpt-4o',
-    'openai/gpt-4-turbo',
-    'anthropic/claude-3.5-sonnet'
+    'google/gemini-2.0-flash-exp',
+    'google/gemini-1.5-flash',
+    'anthropic/claude-3-haiku'
   ];
 
   for (const model of modelsToTry) {
     try {
       const openRouterKey = (keys.openrouter || '').trim();
       if (!openRouterKey) {
-        throw new Error('OpenRouter API key is missing');
+        console.warn('[extractOCRText] OpenRouter API key is missing, skipping OpenRouter models');
+        break;
       }
 
+      console.log(`[extractOCRText] Trying model: ${model}`);
+      
       const response = await fetch(OPENROUTER_CHAT_URL, {
         method: 'POST',
         headers: {
@@ -68,6 +111,8 @@ If no text is found, return {"text": "", "lines": [], "language": "unknown"}`;
       });
 
       if (!response.ok) {
+        const errText = await response.text();
+        console.warn(`[extractOCRText] Model ${model} failed (${response.status}): ${errText.substring(0, 200)}`);
         continue;
       }
 
@@ -76,6 +121,7 @@ If no text is found, return {"text": "", "lines": [], "language": "unknown"}`;
         const resultText = data.choices[0].message.content.trim();
         const jsonText = resultText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
         const ocrResult = JSON.parse(jsonText);
+        console.log(`[extractOCRText] Successfully extracted OCR with model: ${model}`);
         return {
           text: ocrResult.text || '',
           lines: ocrResult.lines || [],
@@ -85,7 +131,7 @@ If no text is found, return {"text": "", "lines": [], "language": "unknown"}`;
     } catch (error) {
       console.warn(`[extractOCRText] Error with model ${model}:`, error.message);
       if (model === modelsToTry[modelsToTry.length - 1]) {
-        throw error;
+        console.error('[extractOCRText] All models failed for OCR');
       }
     }
   }
@@ -118,18 +164,58 @@ Return JSON:
   "analysis": "Detailed comparison analysis"
 }`;
 
+  // Prefer OpenAI vision if available
+  if (keys.openai) {
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${keys.openai.trim()}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: comparePrompt },
+              { type: 'image_url', image_url: { url: imageUrl1, detail: 'auto' } },
+              { type: 'image_url', image_url: { url: imageUrl2, detail: 'auto' } }
+            ]
+          }],
+          response_format: { type: 'json_object' }
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const resultText = data.choices?.[0]?.message?.content || '';
+        const jsonText = resultText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        return JSON.parse(jsonText);
+      }
+    } catch (error) {
+      console.warn('[compareImages] OpenAI vision comparison failed, falling back:', error.message);
+    }
+  }
+
+  // More reliable model list for image comparison
   const modelsToTry = [
-    'google/gemini-2.5-flash-image-preview',
+    'openai/gpt-4o-mini',
     'openai/gpt-4o',
-    'anthropic/claude-3.5-sonnet'
+    'google/gemini-2.0-flash-exp',
+    'google/gemini-1.5-flash',
+    'anthropic/claude-3-haiku'
   ];
 
   for (const model of modelsToTry) {
     try {
       const openRouterKey = (keys.openrouter || '').trim();
       if (!openRouterKey) {
-        throw new Error('OpenRouter API key is missing');
+        console.warn('[compareImages] OpenRouter API key is missing');
+        break;
       }
+
+      console.log(`[compareImages] Trying model: ${model}`);
 
       const response = await fetch(OPENROUTER_CHAT_URL, {
         method: 'POST',
@@ -154,6 +240,8 @@ Return JSON:
       });
 
       if (!response.ok) {
+        const errText = await response.text();
+        console.warn(`[compareImages] Model ${model} failed (${response.status}): ${errText.substring(0, 200)}`);
         continue;
       }
 
@@ -161,11 +249,13 @@ Return JSON:
       if (data.choices?.[0]?.message?.content) {
         const resultText = data.choices[0].message.content.trim();
         const jsonText = resultText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        console.log(`[compareImages] Successfully compared images with model: ${model}`);
         return JSON.parse(jsonText);
       }
     } catch (error) {
       console.warn(`[compareImages] Error with model ${model}:`, error.message);
       if (model === modelsToTry[modelsToTry.length - 1]) {
+        console.error('[compareImages] All models failed for comparison');
         throw error;
       }
     }
@@ -206,10 +296,13 @@ function createGenerateVisualHandler(geminiApiKey, openRouterApiKey) {
 
         const keys = {
           gemini: geminiApiKey.value(),
-          openrouter: openRouterApiKey.value()
+          openrouter: openRouterApiKey.value(),
+          openai: process.env.OPENAI_API_KEY || ''
         };
+        
+        console.log(`${logPrefix} API keys available: gemini=${!!keys.gemini}, openrouter=${!!keys.openrouter}, openai=${!!keys.openai}`);
 
-        if (!keys.gemini && !keys.openrouter) {
+        if (!keys.gemini && !keys.openrouter && !keys.openai) {
           return res.status(500).send({ error: "AI API keys not configured." });
         }
 

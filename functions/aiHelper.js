@@ -306,135 +306,173 @@ async function extractTextFromFiles(storyData) {
 async function analyzeImageWithAI(imageUrl, keys, ragContext = '') {
   const fetch = (await import('node-fetch')).default;
   
-  // Define JSON schema for image analysis output
-  const imageAnalysisSchema = {
-    type: "object",
-    required: ["tags", "category", "description"],
-    properties: {
-      tags: { 
-        type: "array", 
-        description: "5-10 relevant tags (keywords describing image content, people, activities, equipment, locations, etc.)",
-        items: { type: "string" }
-      },
-      category: { 
-        type: "string", 
-        description: "Best category from: Stock Images, Events, Team Photos, Infographics, Operations, Facilities"
-      },
-      description: { 
-        type: "string", 
-        description: "Brief description (1-2 sentences)" 
+  // Use a SHORT, CONCISE prompt for vision models to avoid token limit issues
+  // Vision models handle images natively - the prompt should only describe the task, not include the image
+  const prompt = `Analyze this image and respond with ONLY valid JSON (no markdown, no extra text):
+{
+  "tags": ["tag1", "tag2", ...up to 10 tags describing content],
+  "category": "ONE of: Stock Images, Events, Team Photos, Infographics, Operations, Facilities",
+  "description": "1-2 sentence description"
+}
+
+Focus on: people, activities, equipment, locations, events. Context: PETRONAS Upstream oil & gas.${ragContext ? `\n\nDomain context: ${ragContext.substring(0, 500)}` : ''}`;
+
+  // Prefer direct OpenAI vision if available (handles base64 data URLs reliably)
+  if (keys.openai) {
+    const openaiModels = ['gpt-4o-mini', 'gpt-4o'];
+    for (const model of openaiModels) {
+      try {
+        console.log(`[analyzeImageWithAI] Attempting OpenAI vision model: ${model}`);
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${keys.openai.trim()}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model,
+            messages: [{
+              role: 'user',
+              content: [
+                { type: 'text', text: prompt },
+                { type: 'image_url', image_url: { url: imageUrl, detail: 'auto' } }
+              ]
+            }],
+            response_format: { type: 'json_object' }
+          })
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          console.error(`[analyzeImageWithAI] OpenAI error (${response.status}) on ${model}: ${errText}`);
+          continue;
+        }
+
+        const data = await response.json();
+        const resultText = data.choices?.[0]?.message?.content || '';
+        let jsonText = resultText.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        const analysisResult = JSON.parse(jsonText);
+
+        if (!analysisResult.tags || !Array.isArray(analysisResult.tags) || !analysisResult.category) {
+          throw new Error('Invalid OpenAI response format for image analysis');
+        }
+
+        return {
+          tags: analysisResult.tags.slice(0, 10),
+          category: analysisResult.category,
+          description: analysisResult.description || ''
+        };
+      } catch (error) {
+        console.warn(`[analyzeImageWithAI] OpenAI vision attempt failed (${model}): ${error.message}`);
       }
     }
-  };
-
-  // Load image analysis prompt from file
-  const ragContextInstruction = ragContext 
-    ? "Use the knowledge base context to provide domain-specific insights and ensure accurate categorization based on PETRONAS Upstream terminology and practices."
-    : "Ensure categorization and tags align with PETRONAS Upstream operational context.";
-  
-  let prompt = loadPromptFromFile('image-analysis-prompt.txt', {
-    ragContext: ragContext || '',
-    outputFormat: buildJSONSchemaSpec(imageAnalysisSchema),
-    imageUrl: imageUrl,
-    ragContextInstruction: ragContextInstruction
-  });
-  
-  // Fallback to buildPrompt if file loading fails
-  if (!prompt) {
-    prompt = buildPrompt({
-      role: "Image Analysis Specialist",
-      roleDescription: "You are an image analysis specialist for PETRONAS Upstream. Your task is to analyze images from the gallery and provide accurate tags, categorization, and descriptions that help organize and search visual content.",
-      roleContext: "You analyze images for PETRONAS Upstream's internal gallery system, ensuring accurate categorization and tagging for better content discoverability.",
-      domainContext: true,
-      additionalDomainContext: buildDomainContext() + "\n\nImage Categories: Stock Images, Events, Team Photos, Infographics, Operations, Facilities",
-      knowledgeBaseContext: ragContext,
-      knowledgeBaseOptions: {
-        isPrimarySource: false,
-        showSimilarityScores: false,
-        includeFallback: false
-      },
-      instructions: [
-        "Analyze the provided image and identify key visual elements, subjects, and context.",
-        "Focus on identifying: (1) Image type (photo, graphic, infographic, etc.), (2) Main subjects (people, equipment, facilities, etc.), (3) Context (events, operations, team activities, etc.), (4) Visual style (corporate, casual, technical, etc.).",
-        "Generate 5-10 relevant tags that accurately describe the image content. Tags should be specific keywords that would help users find this image.",
-        "Categorize the image into the most appropriate category from the exact list: Stock Images, Events, Team Photos, Infographics, Operations, Facilities.",
-        "Write a brief description (1-2 sentences) that summarizes what the image shows and its relevance to PETRONAS Upstream operations.",
-        ragContext ? "Use the knowledge base context to provide domain-specific insights and ensure accurate categorization based on PETRONAS Upstream terminology and practices." : "Ensure categorization and tags align with PETRONAS Upstream operational context."
-      ],
-      outputFormat: buildJSONSchemaSpec(imageAnalysisSchema),
-      task: `Analyze this image from a PETRONAS Upstream gallery:\n\nImage URL: ${imageUrl}\n\nProvide tags, category, and description following the format specified above.`
-    });
   }
 
-  // Model list with fallback - try multiple models that support image analysis
-  // Order: Try most capable models first, then fallback to simpler ones
+  // Check if image is a large base64 and needs compression
+  const isBase64Image = imageUrl.startsWith('data:image/');
+  const imageSize = imageUrl.length;
+  const isLargeImage = imageSize > 500000; // > 500KB base64
+  
+  console.log(`[analyzeImageWithAI] Image info: isBase64=${isBase64Image}, size=${imageSize} bytes, isLarge=${isLargeImage}`);
+
+  // Model list with fallback - using CORRECT OpenRouter model IDs
+  // Vision-capable models that handle images natively (not as text tokens)
   const modelsToTry = [
-    'google/gemini-2.5-flash-image-preview',  // Primary: Gemini with image support
-    'openai/gpt-4o',                          // OpenAI vision model
-    'openai/gpt-4-turbo',                    // OpenAI vision model (alternative)
-    'anthropic/claude-3.5-sonnet',            // Claude vision model
-    'anthropic/claude-3-opus',                // Claude vision model (alternative)
-    'google/gemini-2.5-flash',                // Gemini (may support images)
-    'google/gemini-3-pro-preview'             // Keep as last fallback
+    'openai/gpt-4o-mini',                     // OpenAI vision (cost-effective, handles large images well)
+    'openai/gpt-4o',                          // OpenAI vision via OpenRouter
+    'google/gemini-flash-1.5',                // Correct ID: Google Gemini 1.5 Flash
+    'google/gemini-pro-vision',               // Correct ID: Google Gemini Pro Vision
+    'anthropic/claude-3-haiku',               // Claude Haiku (fast)
+    'anthropic/claude-3-sonnet',              // Claude Sonnet
   ];
 
   let lastError = null;
+  const MAX_RETRIES = 1;  // Reduce retries since 400 errors won't resolve with retry
+  
+  // Helper function to detect transient errors worth retrying
+  const isRetryableError = (status, errorText) => {
+    // Don't retry 400 errors (invalid model, token limit) - they won't succeed
+    if (status === 400) return false;
+    const retryableStatuses = [429, 500, 502, 503, 504];
+    const retryableMessages = ['rate limit', 'overloaded', 'timeout', 'temporarily', 'server error'];
+    return retryableStatuses.includes(status) || 
+           retryableMessages.some(msg => errorText.toLowerCase().includes(msg));
+  };
 
   for (const model of modelsToTry) {
-    try {
-      console.log(`[analyzeImageWithAI] Attempting to analyze image with model: ${model}`);
-      console.log(`[analyzeImageWithAI] Image URL: ${imageUrl.substring(0, 100)}...`);
-      
-      // Trim API key to remove any whitespace/newlines
-      const openRouterKey = (keys.openrouter || '').trim();
-      
-      if (!openRouterKey) {
-        throw new Error('OpenRouter API key is missing or empty');
-      }
-      
-      const headers = {
-        'Authorization': `Bearer ${openRouterKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': `https://console.firebase.google.com/project/${process.env.GCP_PROJECT || 'systemicshiftv2'}`,
-        'X-Title': 'Systemic Shift AI Image Analysis',
-      };
+    let retryCount = 0;
+    
+    while (retryCount <= MAX_RETRIES) {
+      try {
+        console.log(`[analyzeImageWithAI] Attempting to analyze image with model: ${model} (attempt ${retryCount + 1}/${MAX_RETRIES + 1})`);
+        console.log(`[analyzeImageWithAI] Image URL: ${imageUrl.substring(0, 100)}...`);
+        
+        // Trim API key to remove any whitespace/newlines
+        const openRouterKey = (keys.openrouter || '').trim();
+        
+        if (!openRouterKey) {
+          throw new Error('OpenRouter API key is missing or empty');
+        }
+        
+        const headers = {
+          'Authorization': `Bearer ${openRouterKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': `https://console.firebase.google.com/project/${process.env.GCP_PROJECT || 'systemicshiftv2'}`,
+          'X-Title': 'Systemic Shift AI Image Analysis',
+        };
 
-      // OpenRouter supports image URLs directly in the message content
-      const body = {
-        model: model,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: prompt },
-              { type: 'image_url', image_url: { url: imageUrl } }
-            ]
+        // Build request body - use 'low' detail for large images to reduce token count
+        const imageDetail = isLargeImage ? 'low' : 'auto';
+        
+        const body = {
+          model: model,
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: prompt },
+                { type: 'image_url', image_url: { url: imageUrl, detail: imageDetail } }
+              ]
+            }
+          ],
+          // Add transforms to handle large payloads automatically
+          transforms: ['middle-out'],
+          max_tokens: 1000  // Limit response size
+        };
+
+        // Log request details (sanitized - no API key)
+        console.log(`[analyzeImageWithAI] Request details:`, {
+          model: model,
+          url: OPENROUTER_CHAT_URL,
+          imageUrlLength: imageUrl.length,
+          imageDetail: imageDetail,
+          hasOpenRouterKey: !!keys.openrouter,
+          promptLength: prompt.length
+        });
+
+        const response = await fetch(OPENROUTER_CHAT_URL, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(body),
+        });
+
+        console.log(`[analyzeImageWithAI] Response status: ${response.status} ${response.statusText}`);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`[analyzeImageWithAI] OpenRouter API error (${response.status}):`, errorText);
+          
+          // Check if error is retryable
+          if (isRetryableError(response.status, errorText) && retryCount < MAX_RETRIES) {
+            retryCount++;
+            const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 2s, 4s
+            console.log(`[analyzeImageWithAI] Retryable error, waiting ${delay}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
           }
-        ],
-        response_format: { type: 'json_object' }
-      };
-
-      // Log request details (sanitized - no API key)
-      console.log(`[analyzeImageWithAI] Request details:`, {
-        model: model,
-        url: OPENROUTER_CHAT_URL,
-        imageUrlLength: imageUrl.length,
-        hasOpenRouterKey: !!keys.openrouter
-      });
-
-      const response = await fetch(OPENROUTER_CHAT_URL, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(body),
-      });
-
-      console.log(`[analyzeImageWithAI] Response status: ${response.status} ${response.statusText}`);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`[analyzeImageWithAI] OpenRouter API error (${response.status}):`, errorText);
-        throw new Error(`OpenRouter error (${response.status}): ${errorText}`);
-      }
+          
+          throw new Error(`OpenRouter error (${response.status}): ${errorText}`);
+        }
 
       const data = await response.json();
       console.log(`[analyzeImageWithAI] Response received, checking format...`);
@@ -495,33 +533,39 @@ async function analyzeImageWithAI(imageUrl, keys, ragContext = '') {
         console.log(`[analyzeImageWithAI] Normalized category from "${originalCategory}" to "${analysisResult.category}"`);
       }
       
-      console.log(`[analyzeImageWithAI] Successfully analyzed image with ${model}`, {
-        category: analysisResult.category,
-        tagsCount: analysisResult.tags.length,
-        hasDescription: !!analysisResult.description
-      });
-      
-      return {
-        tags: analysisResult.tags.slice(0, 10), // Limit to 10 tags
-        category: analysisResult.category,
-        description: analysisResult.description || ''
-      };
+        console.log(`[analyzeImageWithAI] Successfully analyzed image with ${model}`, {
+          category: analysisResult.category,
+          tagsCount: analysisResult.tags.length,
+          hasDescription: !!analysisResult.description
+        });
+        
+        return {
+          tags: analysisResult.tags.slice(0, 10), // Limit to 10 tags
+          category: analysisResult.category,
+          description: analysisResult.description || ''
+        };
 
-    } catch (error) {
-      console.error(`[analyzeImageWithAI] Error with model ${model}:`, {
-        message: error.message,
-        name: error.name,
-        stack: error.stack?.substring(0, 500)
-      });
-      lastError = error;
-      
-      // If this is not the last model, try the next one
-      if (model !== modelsToTry[modelsToTry.length - 1]) {
-        console.log(`[analyzeImageWithAI] Attempting fallback to next model...`);
-        continue;
+      } catch (error) {
+        console.error(`[analyzeImageWithAI] Error with model ${model} (attempt ${retryCount + 1}):`, {
+          message: error.message,
+          name: error.name,
+          stack: error.stack?.substring(0, 500)
+        });
+        lastError = error;
+        
+        // Break out of retry loop if we've exhausted retries
+        retryCount++;
+        if (retryCount > MAX_RETRIES) {
+          break;
+        }
       }
+    } // End of while retry loop
+    
+    // If this is not the last model, try the next one
+    if (model !== modelsToTry[modelsToTry.length - 1]) {
+      console.log(`[analyzeImageWithAI] Attempting fallback to next model...`);
     }
-  }
+  } // End of for model loop
 
   // If we get here, all models failed
   console.error('[analyzeImageWithAI] All models failed. Last error:', lastError?.message);

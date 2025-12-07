@@ -509,6 +509,7 @@ export default function VeraPage() {
   // Generate charts from data (CSV or JSON)
   const generateChartsFromData = (dataToAnalyze, dataType) => {
     const charts = [];
+    const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
     
     if (!dataToAnalyze) {
       console.log('[generateChartsFromData] No data provided');
@@ -906,8 +907,6 @@ export default function VeraPage() {
           const day = dateMention[1];
           
           if (month && day) {
-            const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
-                              'july', 'august', 'september', 'october', 'november', 'december'];
             const monthIndex = monthNames.indexOf(month.toLowerCase());
             if (monthIndex >= 0) {
               const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -1059,6 +1058,29 @@ export default function VeraPage() {
       }
     }
     
+    if (charts.length === 0) {
+      const fallbackData = [
+        { date: '2025-01-01', value: 5 },
+        { date: '2025-02-01', value: 8 },
+        { date: '2025-03-01', value: 6 },
+        { date: '2025-04-01', value: 9 },
+        { date: '2025-05-01', value: 7 }
+      ];
+
+      charts.push({
+        type: 'line',
+        data: fallbackData,
+        series: [{
+          dataKey: 'value',
+          name: 'Sample',
+          color: '#3b82f6'
+        }],
+        isFallback: true
+      });
+
+      console.warn('[generateChartsFromData] No chartable data found; using fallback chart');
+    }
+
     console.log('[generateChartsFromData] Final charts:', charts.length);
     return charts;
   };
