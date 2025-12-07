@@ -3,11 +3,17 @@
  * 
  * Cloud Function to add a single knowledge base entry manually
  * Enhanced with semantic category inference and flexible category management
+ * 
+ * Now includes:
+ * - Structural/semantic chunking for large documents
+ * - Chunk metadata (heading, position, overlap)
+ * - Per-chunk embeddings for better retrieval
  */
 
 const admin = require('firebase-admin');
 const cors = require('cors')({ origin: true });
 const { generateEmbedding, cosineSimilarity } = require('./embeddingsHelper');
+const { chunkDocument, estimateTokens } = require('./documentChunker');
 
 // Lazy getter for Firestore (initialized in index.js)
 function getDb() {
@@ -438,6 +444,22 @@ exports.injectKnowledgeBase = async (req, res) => {
       // Extract terms for BM25 indexing
       const termFrequencies = extractTerms(`${trimmedTitle} ${trimmedContent}`);
 
+      // Check if content should be chunked (> 800 tokens)
+      const contentTokens = estimateTokens(trimmedContent);
+      const shouldChunk = contentTokens > 800;
+      let chunks = [];
+      
+      if (shouldChunk) {
+        chunks = chunkDocument(trimmedContent, {
+          chunkSize: 800,
+          overlap: 100,
+          source: source || 'manual',
+          sourceUrl: sourceUrl ? sourceUrl.trim() : '',
+          category: categoryInference.category
+        });
+        console.log(`[Inject Knowledge Base] Content is ${contentTokens} tokens, creating ${chunks.length} chunks`);
+      }
+
       // Create document with enhanced metadata
       const knowledgeDoc = {
         title: trimmedTitle,
@@ -460,7 +482,11 @@ exports.injectKnowledgeBase = async (req, res) => {
         // BM25 indexing metadata
         termFrequencies,
         termCount: Object.keys(termFrequencies).length,
-        wordCount: trimmedContent.split(/\s+/).length
+        wordCount: trimmedContent.split(/\s+/).length,
+        // Chunking metadata
+        isChunked: shouldChunk,
+        chunkCount: chunks.length,
+        estimatedTokens: contentTokens
       };
 
       // Add embedding data if available
@@ -474,6 +500,52 @@ exports.injectKnowledgeBase = async (req, res) => {
 
       // Add to Firestore
       const docRef = await db.collection('knowledgeBase').add(knowledgeDoc);
+      
+      // Store chunks if document was chunked
+      let chunkIds = [];
+      if (shouldChunk && chunks.length > 0) {
+        const batch = db.batch();
+        
+        for (const chunk of chunks) {
+          const chunkDoc = {
+            parentId: docRef.id,
+            parentTitle: trimmedTitle,
+            content: chunk.text,
+            chunkIndex: chunk.chunkIndex,
+            totalChunks: chunk.totalChunks,
+            heading: chunk.heading || null,
+            contentType: chunk.contentType,
+            estimatedTokens: chunk.estimatedTokens,
+            hasOverlap: chunk.hasOverlap,
+            source: chunk.source,
+            sourceUrl: chunk.sourceUrl,
+            category: categoryInference.category,
+            tags: tagsArray,
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+          };
+          
+          // Generate embedding for chunk if API keys available
+          if (keys.openai || keys.openrouter) {
+            try {
+              const chunkEmbedding = await generateEmbedding(chunk.text.substring(0, EMBEDDING_TEXT_LIMIT), keys, EMBEDDING_MODEL);
+              chunkDoc.embedding = chunkEmbedding;
+              chunkDoc.embeddingModel = EMBEDDING_MODEL;
+            } catch (err) {
+              console.warn(`[Inject Knowledge Base] Failed to embed chunk ${chunk.chunkIndex}:`, err.message);
+            }
+          }
+          
+          const chunkRef = db.collection('knowledgeBaseChunks').doc();
+          batch.set(chunkRef, chunkDoc);
+          chunkIds.push(chunkRef.id);
+        }
+        
+        await batch.commit();
+        console.log(`[Inject Knowledge Base] Stored ${chunkIds.length} chunks with embeddings`);
+        
+        // Update parent with chunk references
+        await docRef.update({ chunkIds });
+      }
 
       // Log with category inference details
       console.log(`[Inject Knowledge Base] Added document: ${docRef.id} - "${trimmedTitle}"`);
@@ -498,6 +570,12 @@ exports.injectKnowledgeBase = async (req, res) => {
           confidence: categoryInference.confidence,
           isKnownCategory: categoryInference.isKnownCategory,
           knownCategories: Object.keys(KNOWN_CATEGORIES)
+        },
+        chunking: {
+          isChunked: shouldChunk,
+          totalChunks: chunks.length,
+          chunkIds: chunkIds.length > 0 ? chunkIds : null,
+          estimatedTokens: contentTokens
         }
       });
 

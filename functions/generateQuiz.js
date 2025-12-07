@@ -35,7 +35,7 @@ function createGenerateQuizHandler(geminiApiKey, openRouterApiKey) {
           return res.status(400).send({ error: "mode must be 'knowledge-base' or 'user-content'" });
         }
 
-        // Validate numQuestions
+        // Validate numQuestions (default 5, cap 20, floor 3 to avoid degenerate quizzes)
         const questionCount = Math.min(Math.max(parseInt(numQuestions) || 5, 3), 20);
         
         const requestId = createRequestId('quiz');
@@ -284,21 +284,46 @@ Systemic Shifts Areas:
           });
         }
 
-        console.log(`${logPrefix} Calling AI to generate quiz...`);
-        const aiStart = Date.now();
-        
-        const aiResponseResult = await generateWithFallback(quizPrompt, keys, true);
-        const aiResponse = aiResponseResult.text || aiResponseResult; // Handle both new and old format
+        // Normalize options to reduce malformed payloads
+        const normalizeOptions = (opts) => {
+          if (!opts) return null;
+          // Accept array of answers
+          if (Array.isArray(opts) && opts.length >= 4) {
+            return {
+              a: String(opts[0] || '').trim(),
+              b: String(opts[1] || '').trim(),
+              c: String(opts[2] || '').trim(),
+              d: String(opts[3] || '').trim()
+            };
+          }
+          // Accept object with variant keys
+          if (typeof opts === 'object') {
+            return {
+              a: String(opts.a || opts.A || '').trim(),
+              b: String(opts.b || opts.B || '').trim(),
+              c: String(opts.c || opts.C || '').trim(),
+              d: String(opts.d || opts.D || '').trim()
+            };
+          }
+          return null;
+        };
 
-        console.log(`${logPrefix} AI response received in ${Date.now() - aiStart} ms`);
-        console.log(`${logPrefix} Response length: ${aiResponse.length} characters`);
-        if (aiResponseResult.metadata) {
-          console.log(`${logPrefix} Model used: ${aiResponseResult.metadata.model}`);
-        }
+        // Helper to run generation + parsing with a given prompt
+        const runQuizGeneration = async (promptText) => {
+          console.log(`${logPrefix} Calling AI to generate quiz...`);
+          const aiStart = Date.now();
+          
+          const aiResponseResult = await generateWithFallback(promptText, keys, true);
+          const aiResponse = aiResponseResult.text || aiResponseResult; // Handle both new and old format
 
-        // Parse JSON response
-        let quizData;
-        try {
+          console.log(`${logPrefix} AI response received in ${Date.now() - aiStart} ms`);
+          console.log(`${logPrefix} Response length: ${aiResponse.length} characters`);
+          if (aiResponseResult.metadata) {
+            console.log(`${logPrefix} Model used: ${aiResponseResult.metadata.model}`);
+          }
+
+          // Parse JSON response
+          let parsed;
           // Try to extract JSON from response (handle cases where AI wraps it in markdown)
           let jsonText = aiResponse.trim();
           
@@ -316,56 +341,70 @@ Systemic Shifts Areas:
             jsonText = jsonText.substring(jsonStart, jsonEnd);
           }
           
-          quizData = JSON.parse(jsonText);
-        } catch (parseError) {
-          console.error(`${logPrefix} Failed to parse AI response as JSON:`, parseError);
-          console.error(`${logPrefix} Raw response:`, aiResponse.substring(0, 500));
-          return res.status(500).send({ 
-            error: "Failed to generate valid quiz format. Please try again.",
-            details: "AI response could not be parsed as JSON"
-          });
-        }
+          parsed = JSON.parse(jsonText);
+          return parsed;
+        };
 
-        // Validate quiz structure
-        if (!quizData.title || !quizData.questions || !Array.isArray(quizData.questions)) {
-          return res.status(500).send({ 
-            error: "Invalid quiz format generated",
-            details: "Missing title or questions array"
-          });
-        }
+        // Retry once with a stricter prompt if parsing/validation fails
+        const maxAttempts = 2;
+        let attempt = 0;
+        let quizData = null;
+        let validQuestions = [];
 
-        // Validate each question
-        const validQuestions = [];
-        for (let i = 0; i < quizData.questions.length; i++) {
-          const q = quizData.questions[i];
-          if (q.question && q.options && q.correctAnswer && q.explanation) {
-            // Ensure correctAnswer is valid
-            if (!['a', 'b', 'c', 'd'].includes(q.correctAnswer.toLowerCase())) {
-              console.warn(`${logPrefix} Question ${i + 1} has invalid correctAnswer: ${q.correctAnswer}`);
-              // Try to fix: use first option if invalid
-              q.correctAnswer = 'a';
+        while (attempt < maxAttempts && validQuestions.length === 0) {
+          try {
+            quizData = await runQuizGeneration(quizPrompt);
+          } catch (parseError) {
+            console.error(`${logPrefix} Failed to parse AI response as JSON (attempt ${attempt + 1}):`, parseError);
+            console.error(`${logPrefix} Raw response could not be parsed`);
+            quizData = null;
+          }
+
+          // Validate quiz structure
+          if (quizData && quizData.questions && Array.isArray(quizData.questions)) {
+            validQuestions = [];
+            for (let i = 0; i < quizData.questions.length; i++) {
+              const q = quizData.questions[i];
+              const normalizedOptions = normalizeOptions(q?.options);
+              
+              if (q?.question && normalizedOptions && q?.correctAnswer && q?.explanation) {
+                let correct = String(q.correctAnswer).toLowerCase();
+                if (!['a', 'b', 'c', 'd'].includes(correct)) {
+                  console.warn(`${logPrefix} Question ${i + 1} has invalid correctAnswer: ${q.correctAnswer}`);
+                  correct = 'a'; // default to first option
+                }
+
+                validQuestions.push({
+                  question: String(q.question).trim(),
+                  options: normalizedOptions,
+                  correctAnswer: correct,
+                  explanation: String(q.explanation).trim()
+                });
+              } else {
+                console.warn(`${logPrefix} Question ${i + 1} is missing required fields`);
+              }
             }
-            validQuestions.push({
-              question: q.question.trim(),
-              options: {
-                a: (q.options.a || q.options.A || '').trim(),
-                b: (q.options.b || q.options.B || '').trim(),
-                c: (q.options.c || q.options.C || '').trim(),
-                d: (q.options.d || q.options.D || '').trim()
-              },
-              correctAnswer: q.correctAnswer.toLowerCase(),
-              explanation: q.explanation.trim()
-            });
-          } else {
-            console.warn(`${logPrefix} Question ${i + 1} is missing required fields`);
+          }
+
+          if (validQuestions.length === 0) {
+            attempt += 1;
+            if (attempt < maxAttempts) {
+              console.warn(`${logPrefix} No valid questions parsed. Retrying with stricter prompt...`);
+              quizPrompt = `${quizPrompt}\n\nSTRICT OUTPUT: Return ONLY valid JSON matching the schema above. No markdown, no prose. Ensure ${questionCount} questions are included.`;
+            }
           }
         }
 
         if (validQuestions.length === 0) {
           return res.status(500).send({ 
             error: "No valid questions generated",
-            details: "AI response did not contain valid question structure"
+            details: "AI response did not contain valid question structure after retry"
           });
+        }
+
+        // Enforce requested question count (trim extras)
+        if (validQuestions.length > questionCount) {
+          validQuestions = validQuestions.slice(0, questionCount);
         }
 
         // Build final quiz object

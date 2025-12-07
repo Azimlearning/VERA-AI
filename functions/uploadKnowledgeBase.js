@@ -2,6 +2,13 @@
  * Upload Knowledge Base Document
  * 
  * Cloud Function to upload a document, extract text, and optionally create knowledge base entry
+ * 
+ * Enhanced with:
+ * - Magic byte file type detection
+ * - Structural/semantic chunking with overlap
+ * - OCR fallback for image-only PDFs
+ * - Chunk metadata (source, heading, page)
+ * - Vision embeddings for images
  */
 
 const admin = require('firebase-admin');
@@ -12,6 +19,11 @@ const os = require('os');
 const fs = require('fs');
 const pdf = require('pdf-parse');
 const mammoth = require('mammoth');
+
+// New modules for enhanced ingestion
+const { detectFileType, detectFileTypeFull, isTextExtractable, isImage } = require('./fileTypeDetector');
+const { chunkDocument, createImageChunk } = require('./documentChunker');
+const { generateEmbedding } = require('./embeddingsHelper');
 
 // Lazy getters for Firebase services (initialized in index.js)
 function getDb() {
@@ -27,10 +39,30 @@ function getBucket() {
 }
 
 /**
- * Extract text from uploaded file
+ * Run OCR on an image file using Tesseract
+ */
+async function runOCR(filePath) {
+  try {
+    const { createWorker } = require('tesseract.js');
+    console.log('[Upload Knowledge Base] Running OCR on image...');
+    const worker = await createWorker('eng');
+    const { data: { text } } = await worker.recognize(filePath);
+    await worker.terminate();
+    console.log(`[Upload Knowledge Base] OCR extracted ${text.length} characters`);
+    return text;
+  } catch (error) {
+    console.error('[Upload Knowledge Base] OCR failed:', error.message);
+    return '';
+  }
+}
+
+/**
+ * Extract text from uploaded file with magic byte detection and OCR fallback
  */
 async function extractTextFromFile(filePath, fileExt) {
   let extractedText = "";
+  let pageData = []; // For page-aware extraction
+  let usedOCR = false;
 
   try {
     // Verify file exists and has content
@@ -43,23 +75,23 @@ async function extractTextFromFile(filePath, fileExt) {
       throw new Error('File is empty');
     }
 
-    if (fileExt === '.pdf') {
-      const dataBuffer = fs.readFileSync(filePath);
-      
+    // Read file buffer for magic byte detection
+    const dataBuffer = fs.readFileSync(filePath);
+    
+    // Use magic byte detection instead of extension alone
+    const detectedType = detectFileType(dataBuffer, path.basename(filePath));
+    console.log(`[Upload Knowledge Base] Detected file type: ${detectedType.type} (confidence: ${detectedType.confidence}, method: ${detectedType.detectedBy})`);
+    
+    // Validate detected type matches expected
+    if (detectedType.confidence === 'high' && detectedType.type !== fileExt.replace('.', '')) {
+      console.warn(`[Upload Knowledge Base] File extension mismatch: expected ${fileExt}, detected ${detectedType.type}`);
+    }
+
+    // Process based on detected type
+    if (detectedType.type === 'pdf' || fileExt === '.pdf') {
       // Validate PDF buffer
       if (!dataBuffer || dataBuffer.length === 0) {
         throw new Error('PDF file buffer is empty');
-      }
-      
-      // Check if it's a valid PDF (starts with %PDF)
-      // Some PDFs might have BOM or whitespace, so check first few bytes
-      const firstBytes = dataBuffer.slice(0, Math.min(1024, dataBuffer.length));
-      const pdfHeader = firstBytes.toString('ascii', 0, Math.min(4, firstBytes.length));
-      
-      // Check for PDF signature (can be at different positions due to BOM)
-      const bufferString = firstBytes.toString('ascii');
-      if (!bufferString.includes('%PDF')) {
-        throw new Error('File does not appear to be a valid PDF. PDF header not found.');
       }
       
       console.log(`[Upload Knowledge Base] PDF file validated, size: ${dataBuffer.length} bytes`);
@@ -67,23 +99,97 @@ async function extractTextFromFile(filePath, fileExt) {
       try {
         const data = await pdf(dataBuffer);
         extractedText = data.text || '';
+        
+        // Store page info if available
+        if (data.numpages) {
+          console.log(`[Upload Knowledge Base] PDF has ${data.numpages} pages`);
+        }
+        
+        // OCR FALLBACK: If PDF parsing returns little/no text, try OCR
+        if (extractedText.trim().length < 100) {
+          console.log('[Upload Knowledge Base] PDF appears to be image-only, attempting OCR fallback...');
+          const ocrText = await runOCR(filePath);
+          if (ocrText && ocrText.trim().length > extractedText.trim().length) {
+            extractedText = ocrText;
+            usedOCR = true;
+            console.log('[Upload Knowledge Base] OCR fallback successful');
+          }
+        }
       } catch (pdfError) {
         console.error(`[Upload Knowledge Base] PDF parsing error:`, pdfError);
-        throw new Error(`Failed to parse PDF: ${pdfError.message}`);
+        // Try OCR as fallback
+        console.log('[Upload Knowledge Base] PDF parsing failed, attempting OCR fallback...');
+        const ocrText = await runOCR(filePath);
+        if (ocrText && ocrText.trim().length > 0) {
+          extractedText = ocrText;
+          usedOCR = true;
+        } else {
+          throw new Error(`Failed to parse PDF: ${pdfError.message}`);
+        }
       }
-    } else if (fileExt === '.docx' || fileExt === '.doc') {
+    } else if (detectedType.type === 'docx' || fileExt === '.docx' || fileExt === '.doc') {
       const result = await mammoth.extractRawText({ path: filePath });
       extractedText = result.value || '';
-    } else if (fileExt === '.txt') {
+    } else if (detectedType.type === 'text' || detectedType.type === 'markdown' || fileExt === '.txt' || fileExt === '.md') {
       extractedText = fs.readFileSync(filePath, 'utf-8');
+    } else if (detectedType.type === 'json' || fileExt === '.json') {
+      const jsonContent = fs.readFileSync(filePath, 'utf-8');
+      try {
+        const parsed = JSON.parse(jsonContent);
+        extractedText = JSON.stringify(parsed, null, 2);
+      } catch {
+        extractedText = jsonContent;
+      }
+    } else if (detectedType.type === 'csv' || fileExt === '.csv') {
+      extractedText = fs.readFileSync(filePath, 'utf-8');
+    } else if (isImage(detectedType)) {
+      // Image file - run OCR
+      console.log('[Upload Knowledge Base] Image file detected, running OCR...');
+      extractedText = await runOCR(filePath);
+      usedOCR = true;
     }
 
-    console.log(`[Upload Knowledge Base] Extracted ${extractedText.length} characters from ${fileExt} file`);
-    return extractedText;
+    console.log(`[Upload Knowledge Base] Extracted ${extractedText.length} characters from ${detectedType.type} file${usedOCR ? ' (via OCR)' : ''}`);
+    
+    return {
+      text: extractedText,
+      detectedType,
+      usedOCR,
+      pageCount: pageData.length || 1
+    };
   } catch (error) {
     console.error(`[Upload Knowledge Base] Error extracting text from ${fileExt}:`, error);
     throw new Error(`Failed to extract text: ${error.message}`);
   }
+}
+
+/**
+ * Process extracted text into chunks with metadata
+ */
+function processIntoChunks(text, options = {}) {
+  const {
+    source = 'document',
+    sourceUrl = '',
+    documentId = null,
+    category = 'general',
+    title = ''
+  } = options;
+
+  const chunks = chunkDocument(text, {
+    chunkSize: 800,
+    overlap: 100,
+    source,
+    sourceUrl,
+    documentId,
+    category
+  });
+
+  // Add title to first chunk heading if not already set
+  if (chunks.length > 0 && title && !chunks[0].heading) {
+    chunks[0].heading = title;
+  }
+
+  return chunks;
 }
 
 /**
@@ -180,10 +286,12 @@ exports.uploadKnowledgeBase = async (req, res) => {
           });
         }
 
-        // Extract text from file
+        // Extract text from file with enhanced detection
         let extractedText = '';
+        let extractionResult = null;
         try {
-          extractedText = await extractTextFromFile(filePath, fileExt);
+          extractionResult = await extractTextFromFile(filePath, fileExt);
+          extractedText = typeof extractionResult === 'string' ? extractionResult : extractionResult.text;
           
           // Validate extracted text
           if (!extractedText || extractedText.trim().length === 0) {
@@ -246,32 +354,110 @@ exports.uploadKnowledgeBase = async (req, res) => {
             tagsArray = suggestedTags;
           }
 
-          const knowledgeDoc = {
+          const category = formData.category || 'general';
+          const db = getDb();
+
+          // Process text into chunks with metadata
+          const chunks = processIntoChunks(extractedText, {
+            source: formData.source || 'document',
+            sourceUrl: formData.sourceUrl || fileUrl,
+            category,
+            title: suggestedTitle
+          });
+
+          console.log(`[Upload Knowledge Base] Created ${chunks.length} chunks from document`);
+
+          // Create parent document
+          const parentDoc = {
             title: suggestedTitle,
             content: extractedText,
-            category: formData.category || 'general',
+            category,
             tags: tagsArray,
             source: formData.source || 'document',
             sourceUrl: formData.sourceUrl || fileUrl,
             documentUrl: fileUrl,
             fileName: fileName,
+            // Extraction metadata
+            extractionMethod: extractionResult?.usedOCR ? 'ocr' : 'text',
+            detectedFileType: extractionResult?.detectedType?.type || fileExt.replace('.', ''),
+            // Chunk metadata
+            chunkCount: chunks.length,
+            isChunked: chunks.length > 1,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           };
 
-          const db = getDb();
-          const docRef = await db.collection('knowledgeBase').add(knowledgeDoc);
-          console.log(`[Upload Knowledge Base] Added document directly: ${docRef.id} - "${suggestedTitle}"`);
+          const docRef = await db.collection('knowledgeBase').add(parentDoc);
+          const parentId = docRef.id;
+          console.log(`[Upload Knowledge Base] Added parent document: ${parentId} - "${suggestedTitle}"`);
+
+          // Store individual chunks with embeddings if document is large
+          let chunkIds = [];
+          if (chunks.length > 1) {
+            const batch = db.batch();
+            
+            for (const chunk of chunks) {
+              const chunkDoc = {
+                // Reference to parent
+                parentId,
+                parentTitle: suggestedTitle,
+                
+                // Chunk content
+                content: chunk.text,
+                
+                // Chunk metadata
+                chunkIndex: chunk.chunkIndex,
+                totalChunks: chunk.totalChunks,
+                heading: chunk.heading || null,
+                contentType: chunk.contentType,
+                estimatedTokens: chunk.estimatedTokens,
+                hasOverlap: chunk.hasOverlap,
+                
+                // Source metadata
+                source: chunk.source,
+                sourceUrl: chunk.sourceUrl,
+                category,
+                tags: tagsArray,
+                
+                // Timestamps
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              };
+
+              const chunkRef = db.collection('knowledgeBaseChunks').doc();
+              batch.set(chunkRef, chunkDoc);
+              chunkIds.push(chunkRef.id);
+            }
+
+            await batch.commit();
+            console.log(`[Upload Knowledge Base] Stored ${chunkIds.length} chunks`);
+
+            // Update parent with chunk references
+            await docRef.update({ chunkIds });
+          }
 
           return res.status(200).send({
             success: true,
             message: 'Document uploaded and added to knowledge base',
-            documentId: docRef.id,
+            documentId: parentId,
             title: suggestedTitle,
             extractedText: extractedText,
             fileUrl: fileUrl,
+            chunking: {
+              totalChunks: chunks.length,
+              chunkIds: chunkIds.length > 0 ? chunkIds : null,
+              usedOCR: extractionResult?.usedOCR || false,
+              detectedType: extractionResult?.detectedType?.type || null
+            }
           });
         }
+
+        // Process into chunks for preview
+        const previewChunks = processIntoChunks(extractedText, {
+          source: 'document',
+          sourceUrl: fileUrl,
+          category: formData.category || 'general',
+          title: suggestedTitle
+        });
 
         // Return extracted text and suggestions for manual review
         res.status(200).send({
@@ -282,6 +468,18 @@ exports.uploadKnowledgeBase = async (req, res) => {
           suggestedCategory: formData.category || 'general',
           fileUrl: fileUrl,
           fileName: fileName,
+          // Enhanced metadata
+          extraction: {
+            usedOCR: extractionResult?.usedOCR || false,
+            detectedType: extractionResult?.detectedType?.type || null,
+            confidence: extractionResult?.detectedType?.confidence || null,
+            detectedBy: extractionResult?.detectedType?.detectedBy || null
+          },
+          chunking: {
+            previewChunkCount: previewChunks.length,
+            firstChunkHeading: previewChunks[0]?.heading || null,
+            estimatedTotalTokens: previewChunks.reduce((sum, c) => sum + c.estimatedTokens, 0)
+          }
         });
 
       } catch (error) {
