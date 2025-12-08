@@ -660,7 +660,20 @@ class ChatbotRAGRetriever {
         r.similarity >= similarityThreshold || r.rerankScore >= similarityThreshold * 0.8
       );
 
+      // If nothing clears the bar, bail out early to avoid dumping weak/irrelevant sources
+      if (filteredResults.length === 0) {
+        console.warn('[ChatbotRAG] No results passed similarity threshold — returning no sources');
+        return [];
+      }
+
       // Select top K
+      // Extra guard: if the best match is still very low confidence, treat as no context
+      const best = filteredResults[0];
+      if ((best.similarity ?? 0) < similarityThreshold * 0.9 && (best.rerankScore ?? 0) < similarityThreshold * 0.9) {
+        console.warn(`[ChatbotRAG] Best result below confidence guardrail (sim=${(best.similarity ?? 0).toFixed(3)}, rerank=${(best.rerankScore ?? 0).toFixed(3)}) — returning no sources`);
+        return [];
+      }
+
       const topResults = filteredResults.slice(0, topK);
 
       // Format output
