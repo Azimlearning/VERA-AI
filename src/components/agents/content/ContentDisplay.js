@@ -6,8 +6,8 @@
 import { motion } from 'framer-motion';
 import { FaFileAlt, FaImage, FaDownload } from 'react-icons/fa';
 
-export default function ContentDisplay({ content, imageUrl, loading }) {
-  if (loading) {
+export default function ContentDisplay({ content, imageUrl, loading, expectingImage }) {
+  if (loading && !content && !imageUrl) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
@@ -15,7 +15,7 @@ export default function ContentDisplay({ content, imageUrl, loading }) {
     );
   }
 
-  if (!content && !imageUrl) {
+  if (!content && !imageUrl && !expectingImage) {
     return null;
   }
 
@@ -53,7 +53,35 @@ export default function ContentDisplay({ content, imageUrl, loading }) {
         </div>
       )}
 
-      {/* Generated Image */}
+      {/* Image Placeholder - Show when expecting image but not yet available */}
+      {expectingImage && !imageUrl && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-gray-50 rounded-lg p-6 border border-gray-200 border-dashed"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <FaImage className="text-green-600" />
+              Generated Image
+            </h4>
+            <span className="text-sm text-gray-500 flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
+              Generating...
+            </span>
+          </div>
+          <div className="flex justify-center items-center min-h-[400px] bg-gray-100 rounded-lg border border-gray-200">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+              <p className="text-gray-600 text-sm">Image is being generated...</p>
+              <p className="text-gray-400 text-xs mt-2">This may take a minute</p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Generated Image - Show when image is available */}
       {imageUrl && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}

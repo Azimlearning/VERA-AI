@@ -1,178 +1,94 @@
-# VERA AI: RAG-Powered Intelligent Knowledge Base Assistant Platform
+# VERA-AI
 
-An enterprise-grade intelligent AI assistant platform designed specifically for PETRONAS Upstream, powered by advanced **Retrieval-Augmented Generation (RAG)** technology, **vector embeddings**, **knowledge base management**, and specialized AI agents to accelerate workflows and provide expert knowledge with citation-backed responses.
+VERA-AI is an internship showcase project for an enterprise AI assistant concept built around Retrieval-Augmented Generation, knowledge base search, and task-specific AI agents. The microsite presents a PETRONAS Upstream-focused assistant experience with chat, analytics, meetings, content, visual, podcast, and quiz workflows.
 
-## Overview
+This repository is optimized as a portfolio-ready Next.js project that can run locally and deploy to Vercel. Some live AI and Firebase features require private credentials and cloud services, so the public showcase can be treated as a UI/product demo unless those services are configured.
 
-VERA AI is a comprehensive AI platform built to support PETRONAS Upstream's digital transformation journey. VERA serves as the core AI intelligence with deep knowledge about:
+## Highlights
 
-- **PETRONAS** (high-level corporate information)
-- **PETRONAS Upstream** (upstream operations, strategies, and initiatives)
-- **Systemic Shifts** (transformation initiatives and progress tracking)
-
-VERA combines advanced AI capabilities with a specialized knowledge base to deliver accurate, citation-backed responses and accelerate various workflows through its ecosystem of specialized AI agents.
-
-## Key Features
-
-### 🤖 Core AI Intelligence (VERA)
-- **RAG-Powered Knowledge Base**: Retrieval-Augmented Generation ensures accurate, context-aware responses
-- **Citation-Backed Answers**: Every response includes source citations for transparency and verification
-- **Specialized Knowledge**: Deep understanding of PETRONAS, PETRONAS Upstream, and Systemic Shifts
-- **Conversational Interface**: Natural language interaction with streaming responses
-
-### 🚀 Six Specialized AI Agents
-
-1. **Analytics Agent**: Data insights and analytics automation
-2. **Meetings Agent**: Meeting organization, action item extraction, and insights
-3. **Podcast Agent**: AI-powered podcast generation from knowledge base content
-4. **Content Agent**: Story drafting and content creation assistance
-5. **Visual Agent**: Image analysis and generation capabilities
-6. **Quiz Agent**: Knowledge testing and assessment generation
+- VERA assistant interface with knowledge-oriented chat UX
+- Six agent concepts: analytics, meetings, podcast, content, visual, and quiz
+- Dashboard-style landing experience for exploring workflows
+- Firebase integration points for Firestore, Storage, and Cloud Functions
+- Optional Python service for local image generation experiments
+- Documentation and demo materials collected under `docs/`
 
 ## Tech Stack
 
-### Frontend
-- **Framework**: Next.js 14+ (App Router)
-- **Styling**: Tailwind CSS
-- **UI Components**: React Icons, Framer Motion
-- **Charts**: Recharts
-- **State Management**: React Hooks
-
-### Backend
-- **Firebase**: Firestore (database), Storage, Cloud Functions
-- **Authentication**: Firebase Auth
-- **Hosting**: Firebase Hosting / Vercel
-
-### AI Services & Technologies
-- **RAG (Retrieval-Augmented Generation)**: Core technology for knowledge retrieval and citation-backed responses
-- **Vector Embeddings**: OpenAI text-embedding-3-large (3,072-dimensional vectors) for semantic search
-- **Vector Database**: Firestore-based knowledge base with cosine similarity search
-- **LLMs**: Google Gemini API, OpenRouter API for text generation and reasoning
-- **Computer Vision**: Gemini Vision API for image analysis and tagging
-- **Image Generation**: Local Stable Diffusion (PyTorch + Hugging Face Diffusers) for cost-effective image synthesis
-- **Text-to-Speech**: Multi-speaker TTS engines for podcast generation
-- **Predictive Analytics**: Prophet algorithm for forecasting and anomaly detection
-
-### Development Tools
-- **Language**: JavaScript/TypeScript, Python
-- **Package Manager**: npm
-- **Version Control**: Git
+- Next.js 16 with the App Router
+- React 19
+- Tailwind CSS 4
+- Framer Motion
+- Firebase client SDK and Firebase Functions
+- Recharts
+- Optional Python image generation utilities
 
 ## Project Structure
 
-```
-vera-ai/
+```text
+VERA-AI/
 ├── src/
-│   ├── app/              # Next.js app router pages
-│   ├── components/       # React components
-│   └── lib/              # Utility functions and helpers
-├── functions/            # Firebase Cloud Functions (Node.js)
-├── public/               # Static assets
-└── Scripts_usage/        # Utility scripts
+│   ├── app/                 # Next.js routes and API handlers
+│   ├── components/          # UI, layout, chat, and agent components
+│   └── lib/                 # Firebase, AI clients, analytics, helpers
+├── functions/               # Firebase Cloud Functions source
+├── python/                  # Optional local image generation service
+├── public/                  # Static images and brand assets
+├── demo/                    # Demo prompts and sample input files
+├── docs/
+│   ├── project-documentation/
+│   └── showcase-assets/     # Screenshots and presentation material
+├── data/raw/                # Local-only raw internship files
+├── .env.example
+└── package.json
 ```
 
-## Quick Start
+## Getting Started
 
-### Prerequisites
-- Node.js 18+ and npm
-- Firebase CLI
-- Python 3.9+ (for local image generation service)
+Install dependencies:
 
-### Installation
-
-1. Clone the repository
-```bash
-git clone <repository-url>
-cd vera-ai
-```
-
-2. Install dependencies
 ```bash
 npm install
 ```
 
-3. Set up environment variables
-Create a `.env.local` file with:
-```env
-NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+Create a local environment file:
+
+```bash
+cp .env.example .env.local
 ```
 
-4. Run development server
+Then add your Firebase and optional AI provider values in `.env.local`.
+
+Run the development server:
+
 ```bash
 npm run dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000)
+Open `http://localhost:3000`.
 
-## Development Scripts
+## Useful Scripts
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run lint` - Run ESLint
-
-## Firebase Functions
-
-### Node.js Functions
-Located in `functions/` directory:
-- `askChatbot` - VERA AI chatbot endpoint with RAG
-- `generateImageHf` - Image generation using Hugging Face
-- `generatePodcast` - Podcast generation
-- `generateQuiz` - Quiz generation
-- `meetxAI` - Meeting insights and processing
-
-### Python Functions
-**Note:** Python Cloud Functions were removed. Image generation is now handled by the local service (`python/local_image_generator.py`).
-
-## Deployment
-
-### Frontend
-Deploy to Firebase Hosting or Vercel:
 ```bash
-npm run build
-firebase deploy --only hosting
+npm run dev      # Start local Next.js development server
+npm run build    # Create a production build
+npm run start    # Run the production build locally
+npm run lint     # Run ESLint
 ```
 
-### Cloud Functions
-```bash
-cd functions
-npm install
-firebase deploy --only functions
-```
+## Vercel Deployment
 
-## Configuration
+1. Push this repository to GitHub.
+2. Import the repository in Vercel.
+3. Keep the framework preset as `Next.js`.
+4. Add the required environment variables from `.env.example`.
+5. Deploy.
 
-See `SETUP.md` for detailed setup instructions including:
-- Firebase configuration
-- API keys setup
-- Environment variables
-- Local development setup
+For a simple portfolio showcase, the frontend can be deployed first. Firebase Functions, RAG retrieval, and provider-backed AI generation should be configured separately when you want the live cloud workflows enabled.
 
-## Documentation
+## Notes
 
-See `Documentation_files/` directory for comprehensive documentation:
-- `SETUP.md` - Detailed setup and configuration guide
-- `TESTING.md` - Testing procedures and checklist
-- `DEPLOYMENT_GUIDE.md` - Complete deployment instructions
-- `FULL_DOCUMENTATION.md` - Full platform architecture and API documentation
-- `SIP_REPORT.md` - Student Industrial Project report
-
-## Contributing
-
-1. Create a feature branch
-2. Make your changes
-3. Test thoroughly
-4. Submit a pull request
-
-## License
-
-Internal use only - PETRONAS Upstream
-
-## Support
-
-For issues and questions, contact the development team.
+- `.env.local`, raw data, output files, and obvious credential files are ignored by Git.
+- The old project documentation has been moved to `docs/project-documentation/`.
+- Local showcase screenshots and presentation material live in `docs/showcase-assets/`.
+- The Python service is optional and not required for the Vercel frontend deployment.

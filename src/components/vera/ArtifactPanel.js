@@ -65,10 +65,27 @@ export default function ArtifactPanel({ isOpen, agent, data, isStreaming, onClos
       case 'analytics':
         return { results: data, loading: isStreaming };
       case 'content':
+        // Extract content - handle both object and string formats
+        let contentValue = null;
+        if (typeof data === 'string') {
+          contentValue = data;
+        } else if (data && typeof data === 'object') {
+          contentValue = data.content || null;
+        }
+        
+        const hasContent = !!contentValue;
+        const hasImage = !!(data.imageUrl || data.aiGeneratedImageUrl);
+        const expectsImage = data && typeof data === 'object' && data.expectedImage !== undefined
+          ? !!data.expectedImage
+          : true; // default to true for content agent
+        
         return { 
-          content: data.content || data, 
-          imageUrl: data.imageUrl,
-          loading: isStreaming 
+          content: contentValue,
+          // Prefer explicit imageUrl, fallback to Firestore field aiGeneratedImageUrl
+          imageUrl: data.imageUrl || data.aiGeneratedImageUrl || null,
+          loading: isStreaming && !hasContent && !hasImage,
+          // Show placeholder only when we expect an image but don't have it yet
+          expectingImage: expectsImage && ((isStreaming && !hasImage) || (hasContent && !hasImage))
         };
       case 'meetings':
         return { 

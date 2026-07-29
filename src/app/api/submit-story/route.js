@@ -5,8 +5,10 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export async function POST(request) {
+  console.log('[submit-story] POST request received');
   try {
     const formData = await request.formData();
+    console.log('[submit-story] FormData parsed');
     
     // Extract form fields
     const submissionData = {
@@ -80,15 +82,18 @@ export async function POST(request) {
     submissionData.aiGeneratedImageUrl = 'Pending local generation';
 
     // Save to Firestore
+    console.log('[submit-story] Saving to Firestore...');
     const docRef = await addDoc(collection(db, 'stories'), submissionData);
+    console.log('[submit-story] Document created with ID:', docRef.id);
 
     return NextResponse.json({
       message: 'Story submitted successfully!',
       storyId: docRef.id,
+      id: docRef.id, // Include both for compatibility
     }, { status: 200 });
 
   } catch (error) {
-    console.error('Error submitting story:', error);
+    console.error('[submit-story] Error:', error);
     return NextResponse.json(
       { error: `Failed to process submission: ${error.message}` },
       { status: 500 }

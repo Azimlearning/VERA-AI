@@ -29,6 +29,15 @@ NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id_here
 NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=your_measurement_id_here
 
 # ============================================================================
+# AI API Keys (for image generation)
+# ============================================================================
+
+# Gemini 3 API Key (for fast image generation)
+# Get your key from: https://aistudio.google.com/app/apikey
+GEMINI_API_KEY=your_gemini_api_key_here
+NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key_here
+
+# ============================================================================
 # NOTES:
 # ============================================================================
 #

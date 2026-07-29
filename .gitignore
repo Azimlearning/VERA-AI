@@ -46,6 +46,15 @@ python/SETUP_AUTH.md
 test-hf-api-direct.ps1
 *.json.key
 *firebase-key*
+*service-account*
+*adminsdk*
+*API KEY*
+*api-key*
+
+# local/raw internship material
+/data/raw/
+/docs/showcase-assets/output/
+/docs/showcase-assets/injection file/
 
 # Python
 __pycache__/

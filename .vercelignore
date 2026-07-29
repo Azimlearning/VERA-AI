@@ -1,0 +1,17 @@
+.git
+.next
+node_modules
+
+# Local-only project material
+data/
+demo/
+docs/
+
+# Not required for the Vercel frontend deployment
+functions/
+python/
+
+# Local environment and logs
+.env*
+*.log
+firebase-debug.log

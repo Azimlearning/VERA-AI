@@ -1,0 +1,123 @@
+Here is a full breakdown of **Idea 1: Camera-Based Seat Detection**, structured like a mini Product Requirements Document (PRD) tailored to your RM250 budget and technical skills (Node.js/Vue/React).
+
+### **Project Title:** Smart Seat Occupancy Tracker (Computer Vision)
+
+**Concept:** "Amazon Go" for Library Seats – Using a single camera to detect if multiple seats are occupied without physical sensors on every chair.
+
+---
+
+### **1. Feasibility Analysis**
+
+* **Technical Doability (High):**
+* You do not need to train your own AI model. You can use pre-trained models like **YOLOv8** (best for person detection) or **MediaPipe** (lighter, faster, good for pose detection).
+* Since you already know **Node.js**, setting up a local server to receive data from the Python script is easy.
+* **Latency:** Processing video frames takes milliseconds. The update to the dashboard will be near real-time (1-2 seconds delay).
+
+
+* **Financial Feasibility (Budget: RM250):**
+* This project is extremely cheap because the "brains" (processing) happen on your laptop, not on expensive embedded hardware.
+* **Hardware Cost:** ~RM60 - RM100 (Webcam + Mount).
+* **Software Cost:** RM0 (Open Source libraries + Free Tier Firebase/Vercel).
+
+
+* **Privacy/Legal (The "Red Flag"):**
+* **Constraint:** You cannot record students.
+* **Feasibility:** The Python script processes the live feed frame-by-frame in RAM and discards it immediately. No video is saved to a disk. This makes it compliant with general "non-surveillance" rules for a student project.
+
+
+
+---
+
+### **2. Hardware & Budget Breakdown (Allocated: RM250)**
+
+For the Proof of Concept (POC), you will likely run the Python script on your laptop.
+
+| Item | Description | Estimated Cost (RM) |
+| --- | --- | --- |
+| **HD Webcam** | 720p/1080p USB Webcam (e.g., Logitech C270 or generic). A wide-angle lens is better to cover more chairs. | RM 50 - RM 90 |
+| **Mounting Gear** | Small Tripod or Clamp to hold the camera high up (looking down provides better accuracy). | RM 20 - RM 40 |
+| **USB Extension** | 3M or 5M USB extension cable (to place camera high up while laptop is on the table). | RM 15 - RM 25 |
+| **Server/Hosting** | Firebase (Database) + Vercel (Frontend). | RM 0 (Free Tier) |
+| **Contingency** | Extra cables, tape, or cardboard for demo setup. | RM 50 |
+| **TOTAL** |  | **~RM 135 - RM 205** |
+
+*You are safely under the RM250 budget.*
+
+---
+
+### **3. Technical Architecture (The "How-To")**
+
+This uses your existing stack (**Node.js, Vue/React**) combined with **Python** for the vision part.
+
+#### **A. The Vision Engine (Python)**
+
+* **Library:** `ultralytics` (for YOLOv8) and `opencv-python`.
+* **Logic:**
+1. **Define Zones:** You manually draw 4 "Polygons" on the video feed corresponding to 4 chairs (e.g., `Chair_A`, `Chair_B`, etc.).
+2. **Detect:** YOLOv8 detects objects of class "Person".
+3. **Check Overlap:** If the "Person" bounding box overlaps significantly (e.g., >30%) with `Chair_A`'s polygon → **Status = Occupied**.
+4. **Send Data:** The script sends a JSON payload to your backend.
+
+
+
+#### **B. The Backend (Node.js)**
+
+* Create a simple **REST API** (e.g., `POST /update-status`).
+* Receives: `{ "chair_id": "A1", "status": "occupied" }`
+* Action: Updates the Firebase Realtime Database.
+
+#### **C. The Frontend (Vue/React)**
+
+* Connects to Firebase.
+* Listens for changes.
+* **UI:** A map of the library. If `status === occupied`, turn the chair icon **Red**. If `free`, turn it **Green**.
+
+---
+
+### **4. Step-by-Step Implementation Roadmap**
+
+#### **Phase 1: Setup (Day 1-2)**
+
+1. Buy the webcam and extension cable.
+2. Install Python and VS Code.
+3. Install libraries: `pip install ultralytics opencv-python requests`
+4. Test the camera: Write a 10-line script to open the webcam window.
+
+#### **Phase 2: The Detection Script (Day 3-5)**
+
+1. **Run YOLO:** Implement YOLOv8 to draw boxes around people.
+2. **Define ROIs (Regions of Interest):**
+* Hardcode the coordinates of the chairs for your specific camera angle.
+* *Tip:* Create a "Calibration Mode" where you click on the screen to define where the chairs are.
+
+
+3. **Logic Check:** Write the `if person_box is inside chair_box` logic.
+
+#### **Phase 3: Connection (Day 6-7)**
+
+1. Set up your standard Node.js + Firebase project.
+2. Make the Python script send a `POST` request every 2 seconds (sending every frame is too fast/unnecessary).
+```python
+# Pseudo-code example
+if status_changed:
+    requests.post('https://your-api.com/update', json={'id': 1, 'occupied': True})
+
+```
+
+
+
+#### **Phase 4: The Dashboard (Day 8)**
+
+1. Draw a simple SVG map of the library layout.
+2. Bind the SVG fill color to the Firebase data.
+
+---
+
+### **5. Pitching This to Your Team (Why this is "Feasible")**
+
+* **"We don't need to build hardware."** No soldering irons, no Arduino coding (C++), no batteries running out. It plugs into a wall/laptop.
+* **"It scales."** One RM80 camera can monitor 4-8 seats. Doing that with sensors would cost RM20 *per seat* plus wiring.
+* **"It looks impressive."** Showing a live video feed with AI boxes detecting people in real-time during your presentation looks much more "Technopreneurship" than a simple blinking LED.
+
+**Pro-Tip for the POC:**
+When you demo this, **do not** point the camera at the whole room. Point it at **one specific table** with 4 chairs. This controls the lighting and angle, ensuring your AI works perfectly for the presentation.

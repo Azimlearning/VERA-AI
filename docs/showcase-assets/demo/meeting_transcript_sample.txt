@@ -1,0 +1,33 @@
+Project Titan – Weekly Ops Review
+Date: 2025-12-05
+Attendees: Ali (Ops Lead), Mei (HSE), Rahul (Production), Sara (Drilling), Lina (PMO)
+
+Agenda:
+- Production performance vs plan
+- Safety actions and overdue items
+- Carbon reduction initiatives (flare minimization)
+
+Discussion Summary:
+- Production is at 94% of plan due to slower ramp-up on Well A-17; expected recovery in 10 days.
+- Compressor #2 vibration alert cleared; bearing swapped during last 6-hour window.
+- HSE: Two near-misses reported (slip hazard on deck, unsecured ladder). Corrective actions implemented; follow-up inspection scheduled.
+- Flaring: 8% above target this week because of compressor downtime. Team aligned to target <3% by mid-month.
+- Drilling: BHA change-out added 12 hours NPT; root cause under review; new BHA design test planned next run.
+- Carbon Capture note: Partner study draft due next Wednesday; requires production input.
+
+Decisions:
+- Proceed with temporary choke on Well A-17 to stabilize flow until compressor reliability proven.
+- Shift one maintenance tech from utilities to rotating equipment for the next 2 weeks.
+- Adopt revised JSA template for deck work effective immediately.
+
+Action Items:
+- Ali: Share updated ramp-up forecast and mitigation plan by Tuesday COB.
+- Mei: Lead follow-up safety inspection on deck; report due Friday.
+- Rahul: Provide production data for flare minimization study by Wednesday.
+- Sara: Deliver BHA failure review and revised drilling plan by next ops call.
+- Lina: Track carbon capture partner deliverable and schedule review next Wednesday.
+
+Risks / Watchouts:
+- If compressor #2 trips again, flaring may exceed monthly target; prepare contingency.
+- Weather window tightening could delay offshore crew change; have backup plan.
+

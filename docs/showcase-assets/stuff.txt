@@ -1,0 +1,21 @@
+normal chat done
+
+meeting its okay la
+quiz okya la
+analytical okay la
+podcast okay la
+image okayla
+
+content no yet 
+
+cd "C:\Users\User\Documents\Coding\SIP\Systemic Shifts Microsite\python"
+$env:GOOGLE_APPLICATION_CREDENTIALS="C:\Users\User\Documents\Coding\SIP\Systemic Shifts Microsite\python\firebase-key.json"
+$env:GEMINI_API_KEY="your_gemini_api_key"
+$env:USE_GEMINI_3="true"
+.venv\Scripts\Activate
+python local_image_generator.py
+
+
+$env:Path="C:\Program Files (x86)\cloudflared;$env:Path"
+cd demo
+.\start-tunnel.ps1

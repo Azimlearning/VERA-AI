@@ -409,5 +409,3 @@ export async function clearTestData(collections = ['stories', 'meetings', 'analy
   return results;
 }
 
-// Export scenarios for use in other modules
-export { DATA_SCENARIOS };

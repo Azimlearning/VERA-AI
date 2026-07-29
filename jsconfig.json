@@ -21,15 +21,16 @@
   },
   "include": [
     "src/**/*",
-    "next-env.d.ts",
-    "**/*.js",
-    "**/*.jsx"
+    "next-env.d.ts"
   ],
   "exclude": [
     "node_modules",
     ".next",
     "out",
     "dist",
-    "functions"
+    "functions",
+    "python",
+    "docs",
+    "data"
   ]
 }

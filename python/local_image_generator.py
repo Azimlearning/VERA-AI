@@ -31,6 +31,8 @@ MODEL_ID = os.environ.get("SD_MODEL_ID", "CompVis/stable-diffusion-v1-4")
 BUCKET_NAME = os.environ.get("IMAGE_BUCKET_NAME", "systemicshiftv2.firebasestorage.app")
 IMAGE_FOLDER = os.environ.get("IMAGE_FOLDER", "generated_images")
 HF_TOKEN = os.environ.get("HF_API_TOKEN")  # Set this in your environment
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")  # Gemini 3 API key (preferred for image gen)
+USE_GEMINI_3 = os.environ.get("USE_GEMINI_3", "true").lower() in ("1", "true", "yes")  # Default to Gemini 3
 PROJECT_ID = "systemicshiftv2"
 
 # Initialize Firebase Admin with service account key
@@ -338,6 +340,68 @@ def generate_image(prompt: str, width: int = 512, height: int = 512,
     
     return result.images[0]
 
+def generate_image_via_gemini3(prompt: str, aspect_ratio: str = "1:1", image_size: str = "2K") -> Image.Image:
+    """Generate image using Gemini 3 Pro Image API (faster than local SD on CPU)"""
+    if not GEMINI_API_KEY:
+        raise ValueError("GEMINI_API_KEY is required for Gemini 3 image generation")
+    
+    model = "gemini-3-pro-image-preview"
+    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    
+    logger.info(f"[Gemini3] Generating image: {len(prompt)} chars, {aspect_ratio}, {image_size}")
+    
+    try:
+        response = requests.post(
+            endpoint,
+            headers={
+                "Content-Type": "application/json",
+                "x-goog-api-key": GEMINI_API_KEY,
+            },
+            json={
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {
+                    "imageConfig": {
+                        "aspectRatio": aspect_ratio,
+                        "imageSize": image_size
+                    }
+                }
+            },
+            timeout=120  # 2 minute timeout
+        )
+        
+        if not response.ok:
+            error_text = response.text
+            logger.error(f"[Gemini3] API error {response.status_code}: {error_text[:500]}")
+            raise RuntimeError(f"Gemini 3 API error: {response.status_code}")
+        
+        data = response.json()
+        candidates = data.get("candidates", [])
+        
+        if not candidates:
+            raise RuntimeError("No candidates returned from Gemini 3")
+        
+        parts = candidates[0].get("content", {}).get("parts", [])
+        image_part = next((p for p in parts if "inlineData" in p), None)
+        
+        if not image_part:
+            logger.error(f"[Gemini3] No image in response: {str(data)[:500]}")
+            raise RuntimeError("No image returned from Gemini 3")
+        
+        # Decode base64 image
+        import base64
+        from io import BytesIO
+        image_data = base64.b64decode(image_part["inlineData"]["data"])
+        image = Image.open(BytesIO(image_data))
+        
+        logger.info(f"[Gemini3] Image generated successfully: {image.size}")
+        return image
+        
+    except requests.exceptions.Timeout:
+        raise RuntimeError("Gemini 3 API request timed out")
+    except Exception as e:
+        logger.error(f"[Gemini3] Error: {e}")
+        raise
+
 def upload_to_storage(image: Image.Image, filename: str) -> str:
     """Upload image to Firebase Storage and return public URL"""
     bucket = storage_client.bucket(BUCKET_NAME)
@@ -453,11 +517,43 @@ def process_story(doc_id: str, story_data: dict):
         prompt = truncate_for_clip(prompt, max_tokens=70)
     
         logger.info(f"Generating image for: {title}")
-        logger.debug(f"Final prompt: {prompt[:150]}...")  # Log first 150 chars
-        logger.debug(f"Negative prompt: {negative_prompt}")
         
-        # Generate image with graceful degradation
-        image = generate_image_with_retries(prompt, negative_prompt)
+        # Choose generation method: Gemini 3 (fast, cloud) or local SD (slow, CPU)
+        image = None
+        image_generator = "unknown"
+        
+        if USE_GEMINI_3 and GEMINI_API_KEY:
+            # Use Gemini 3 Pro Image (much faster, no local GPU needed)
+            logger.info("[ImageGen] Using Gemini 3 Pro Image API")
+            try:
+                # Build a richer prompt for Gemini 3 (no token limit like CLIP)
+                gemini_prompt = f"""Create a professional corporate infographic for PETRONAS Upstream.
+
+Title: "{title}"
+Key metrics: {key_metrics_text if key_metrics_text else 'Key achievements and outcomes'}
+
+Requirements:
+- Vertical layout (portrait orientation)  
+- Color palette: teal (#008080), white, light gray
+- Visual style: flat design, minimal icons, modern corporate aesthetic
+- Use data visualizations and icons, minimal text
+- Professional, clean design suitable for internal communications
+
+DO NOT include dense text blocks. Focus on visual representation."""
+                
+                image = generate_image_via_gemini3(gemini_prompt, aspect_ratio="9:16", image_size="2K")
+                image_generator = "gemini-3-pro-image"
+            except Exception as gemini_error:
+                logger.warning(f"[ImageGen] Gemini 3 failed: {gemini_error}. Falling back to local SD...")
+                # Fall through to local generation
+        
+        if image is None:
+            # Fallback to local Stable Diffusion (slower on CPU)
+            logger.info("[ImageGen] Using local Stable Diffusion")
+            logger.debug(f"Final prompt: {prompt[:150]}...")
+            logger.debug(f"Negative prompt: {negative_prompt}")
+            image = generate_image_with_retries(prompt, negative_prompt)
+            image_generator = "stable-diffusion-local"
         
         # Upload to storage
         filename = f"{IMAGE_FOLDER}/{doc_id}_{int(time.time())}.png"
@@ -467,13 +563,13 @@ def process_story(doc_id: str, story_data: dict):
         logger.info(f"Updating Firestore document {doc_id} with image URL...")
         
         # Update Firestore
-        # Set analysisTimestamp so frontend knows generation is complete
         doc_ref = db.collection("stories").document(doc_id)
         update_data = {
             "aiGeneratedImageUrl": image_url,
-            "analysisTimestamp": firestore.SERVER_TIMESTAMP,  # Frontend checks this to hide "Generating Content..."
+            "analysisTimestamp": firestore.SERVER_TIMESTAMP,
             "imageGeneratedAt": firestore.SERVER_TIMESTAMP,
-            "imageGeneratedLocally": True
+            "imageGeneratedBy": image_generator,
+            "imageGeneratedLocally": image_generator == "stable-diffusion-local"
         }
         doc_ref.update(update_data)
         logger.info(f"✅ Firestore updated successfully for {doc_id}")

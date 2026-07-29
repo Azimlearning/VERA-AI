@@ -1,6 +1,7 @@
 // src/app/vera/page.js
 'use client'; 
 
+import { Suspense } from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
@@ -74,7 +75,7 @@ const AGENTS = [
   },
 ];
 
-export default function VeraPage() {
+function VeraContent() {
   const chatFunctionUrl = "https://askchatbot-el2jwxb5bq-uc.a.run.app";
   const searchParams = useSearchParams();
   const agentParam = searchParams.get('agent');
@@ -1511,13 +1512,11 @@ export default function VeraPage() {
         setIsArtifactOpen(true);
         
         try {
-          const submitStoryUrl = 'https://submitstory-el2jwxb5bq-uc.a.run.app';
+          // Use local Next.js API route (returns storyId properly)
+          const submitStoryUrl = '/api/submit-story';
           
-          // Detect generation type from message (content, image, or both)
-          const lowerMessage = messageText.toLowerCase();
-          const wantsImage = lowerMessage.includes('image') || lowerMessage.includes('picture') || lowerMessage.includes('visual');
-          const wantsContent = !lowerMessage.includes('only image') && !lowerMessage.includes('image only');
-          const generationType = wantsImage && wantsContent ? 'both' : wantsImage ? 'image' : 'content';
+          // Always generate both content and image for the Content Agent
+          const generationType = 'both';
           
           // Create FormData for multipart/form-data (submitStory expects this format)
           const formData = new FormData();
@@ -1579,8 +1578,9 @@ export default function VeraPage() {
           let content = null;
           let imageUrl = null;
           let timeoutId = null;
-          const hasContent = generationType === 'content' || generationType === 'both';
-          const hasImage = generationType === 'image' || generationType === 'both';
+          // Since we always generate both, track both
+          const hasContent = true;
+          const hasImage = true;
 
           const unsubscribe = onSnapshot(
             doc(db, 'stories', storyId),
@@ -1594,30 +1594,56 @@ export default function VeraPage() {
                 }
                 
                 // Check if image is ready (must be valid HTTP URL, not "Pending local generation" or "pending")
+                let newImageUrl = null;
                 if (hasImage) {
                   const currentImageUrl = storyData.aiGeneratedImageUrl;
                   if (currentImageUrl && 
+                      typeof currentImageUrl === 'string' &&
                       currentImageUrl !== 'Pending local generation' && 
                       currentImageUrl !== 'pending' &&
-                      currentImageUrl.startsWith('http')) {
-                    imageUrl = currentImageUrl;
+                      (currentImageUrl.startsWith('http://') || currentImageUrl.startsWith('https://'))) {
+                    newImageUrl = currentImageUrl;
                   }
+                }
+                
+                // Update local state if we found new content or image
+                if (hasContent && storyData.aiGeneratedWriteup) {
+                  content = storyData.aiGeneratedWriteup;
+                }
+                if (newImageUrl) {
+                  imageUrl = newImageUrl;
                 }
                 
                 // Determine what's ready
                 const contentReady = !hasContent || !!content;
                 const imageReady = !hasImage || !!imageUrl;
                 
-                // Update artifact data when we have something
-                if (contentReady || imageReady) {
-                  setArtifactData({
-                    content: content || null,
-                    imageUrl: imageUrl || null
-                  });
-                  setArtifactType('content');
-                  
-                  // If both are ready, stop listening and clear timeout
-                  if (contentReady && imageReady) {
+                // Always update artifact data whenever the document changes
+                // This ensures the image appears when it's ready, even if content was shown first
+                console.log('[Content Agent] Firestore update detected:', {
+                  hasContent: !!content,
+                  hasImage: !!imageUrl,
+                  contentReady,
+                  imageReady,
+                  generationType,
+                  imageUrlValue: imageUrl,
+                  currentImageUrlFromFirestore: storyData.aiGeneratedImageUrl,
+                  rawStoryData: {
+                    aiGeneratedWriteup: !!storyData.aiGeneratedWriteup,
+                    aiGeneratedImageUrl: storyData.aiGeneratedImageUrl
+                  }
+                });
+                
+                // Always update artifact data - this will trigger a re-render
+                setArtifactData({
+                  content: content || null,
+                  imageUrl: imageUrl || null,
+                  expectedImage: hasImage
+                });
+                setArtifactType('content');
+                
+                // If both are ready, stop listening and clear timeout
+                if (contentReady && imageReady) {
                     if (timeoutId) clearTimeout(timeoutId);
                     unsubscribe();
                     setIsArtifactStreaming(false);
@@ -1660,16 +1686,54 @@ export default function VeraPage() {
                     }
                     
                     setIsChatLoading(false);
-                  } else if ((hasContent && contentReady && !hasImage) || (hasImage && imageReady && !hasContent)) {
-                    // Only one type was requested and it's ready
+                  } else if (generationType === 'content' && contentReady) {
+                    // Only content was requested and it's ready
                     if (timeoutId) clearTimeout(timeoutId);
                     unsubscribe();
                     setIsArtifactStreaming(false);
                     
                     // Create chat message
-                    const chatText = hasContent
-                      ? "I've generated the content in the panel."
-                      : "I've generated the image in the panel.";
+                    const chatText = "I've generated the content in the panel.";
+                    
+                    const newAiMessage = {
+                      role: 'ai',
+                      content: chatText,
+                      timestamp: new Date(),
+                      citations: []
+                    };
+                    
+                    const finalHistory = [...updatedHistory, newAiMessage];
+                    setChatHistory(finalHistory);
+                    setSuggestions([]);
+                    
+                    saveMessageToSession(newAiMessage, sessionId, finalHistory).catch(err => {
+                      console.error('[Chat] Error saving message:', err);
+                    });
+                    
+                    // Update session title
+                    if (sessionId) {
+                      try {
+                        const sessionRef = doc(db, 'chatSessions', sessionId);
+                        const title = messageText.substring(0, 50);
+                        updateDoc(sessionRef, {
+                          title: title.length >= 50 ? title + '...' : title
+                        }).catch(error => {
+                          console.error('[Chat] Error updating session title:', error);
+                        });
+                      } catch (error) {
+                        console.error('[Chat] Error updating session title:', error);
+                      }
+                    }
+                    
+                    setIsChatLoading(false);
+                  } else if (generationType === 'image' && imageReady) {
+                    // Only image was requested and it's ready
+                    if (timeoutId) clearTimeout(timeoutId);
+                    unsubscribe();
+                    setIsArtifactStreaming(false);
+                    
+                    // Create chat message
+                    const chatText = "I've generated the image in the panel.";
                     
                     const newAiMessage = {
                       role: 'ai',
@@ -1703,10 +1767,17 @@ export default function VeraPage() {
                     
                     setIsChatLoading(false);
                   } else {
-                    // Still waiting for content or image
+                    // Still waiting for content or image (or both if generationType === 'both')
                     setIsArtifactStreaming(true);
+                    // Keep listening - don't unsubscribe yet
+                    
+                    // If we have content but waiting for image (both mode), show a temporary message
+                    if (generationType === 'both' && contentReady && !imageReady) {
+                      // Don't create a final message yet - wait for image
+                      // But ensure artifact panel stays open and shows placeholder
+                      console.log('[Content Agent] Content ready, waiting for image...');
+                    }
                   }
-                }
               }
             },
             (error) => {
@@ -1719,7 +1790,8 @@ export default function VeraPage() {
               if (content || imageUrl) {
                 setArtifactData({
                   content: content || null,
-                  imageUrl: imageUrl || null
+                  imageUrl: imageUrl || null,
+                  expectedImage: hasImage
                 });
               } else {
                 // Fall through to regular chat API
@@ -1735,7 +1807,8 @@ export default function VeraPage() {
             // Show whatever we have (content or partial results)
             setArtifactData({
               content: content || (hasContent ? 'Content generation is taking longer than expected. Please check back later.' : null),
-              imageUrl: imageUrl || null
+              imageUrl: imageUrl || null,
+              expectedImage: hasImage
             });
             setArtifactType('content');
             setIsArtifactStreaming(false);
@@ -2579,7 +2652,10 @@ export default function VeraPage() {
                                   className="sources-section"
                                   id={`sources-${index}`}
                                 >
-                                  <span className="sources-label">Sources</span>
+                                  <details className="sources-details">
+                                    <summary className="sources-label">
+                                      Sources ({msg.citations.length})
+                                    </summary>
                                   <div className="sources-container">
                                     {msg.citations.map((citation, idx) => {
                                       const citationNumber = citation.number || (idx + 1);
@@ -2620,6 +2696,7 @@ export default function VeraPage() {
                                       );
                                     })}
                                   </div>
+                                  </details>
                                 </motion.div>
                               )}
                             </motion.div>
@@ -2774,5 +2851,13 @@ export default function VeraPage() {
         }}
       />
     </div>
+  );
+}
+
+export default function VeraPage() {
+  return (
+    <Suspense fallback={null}>
+      <VeraContent />
+    </Suspense>
   );
 }

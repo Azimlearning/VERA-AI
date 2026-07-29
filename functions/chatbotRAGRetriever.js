@@ -573,8 +573,8 @@ class ChatbotRAGRetriever {
         const collectionDocs = snapshot.docs.map(doc => {
           const data = doc.data();
           return {
-            id: doc.id,
-            ref: doc.ref,
+          id: doc.id,
+          ref: doc.ref,
             data: data,
             collection: collectionName,
             // Mark chunks with their parent info

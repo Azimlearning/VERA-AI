@@ -1,0 +1,18 @@
+VERA main chat (5)
+1) “Summarize the 3 pillars of Systemic Shifts and how they map to PETRONAS Upstream priorities.”
+2) “List the top five carbon abatement levers we’ve highlighted and note which have the fastest payback.”
+3) “What lessons learned do we have on compressor reliability from recent outages?”
+4) “Give me a 2-paragraph briefing on our flare minimization targets and current gap-to-target.”
+5) “Create three follow-up questions I should ask leadership about accelerating Systemic Shifts execution.”
+Analytics Agent (3)
+1) “Analyze production_data.csv and describe the trend, anomaly dates, and likely causes. Give 3 actions.”
+2) “From this CSV, identify any leading indicators of downtime and recommend mitigations.”
+3) “Summarize week-over-week performance and call out any statistically significant shifts.”
+Podcast Agent (3)
+1) “Generate a 2-minute podcast script on Carbon Capture progress, with one expert quote and a simple CTA.”
+2) “Create a podcast episode explaining how Systemic Shifts reduce flaring, aimed at frontline ops.”
+3) “Draft a short ‘morning briefing’ podcast on this week’s production highlights and safety wins.”
+Quiz Agent (3)
+1) “Generate 6 mixed MCQ/True-False questions on Carbon Capture with explanations.”
+2) “Create a 5-question quiz on compressor reliability best practices, include answers + rationale.”
+3) “Build a quick quiz to test understanding of Systemic Shifts pillars and their objectives.”

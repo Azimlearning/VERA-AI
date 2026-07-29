@@ -1,0 +1,35 @@
+# Cloudflare Tunnel - Quick Reference Commands
+# ===========================================
+
+## Basic Tunnel (No Login Required)
+cloudflared tunnel --url http://localhost:3000
+
+## With Custom Subdomain (Requires Login)
+# First login: cloudflared tunnel login
+# Then: cloudflared tunnel --url http://localhost:3000 --hostname your-subdomain.trycloudflare.com
+
+## Check if cloudflared is installed
+cloudflared --version
+
+## Install cloudflared (Windows)
+# Option 1: winget install --id Cloudflare.cloudflared
+# Option 2: Download from https://github.com/cloudflare/cloudflared/releases
+
+## Alternative: Ngrok (Backup Option)
+ngrok http 3000
+
+## Alternative: Localtunnel (Backup Option)
+npm install -g localtunnel
+lt --port 3000
+
+## Test Local Server
+curl http://localhost:3000
+# Or open in browser: http://localhost:3000
+
+## Find Your IP (for same-network access)
+ipconfig
+# Then use: http://YOUR_IP:3000 (only works on same WiFi)
+
+
+
+

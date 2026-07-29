@@ -17,8 +17,7 @@ function getApiKey() {
     return process.env.OPENROUTER_API_KEY;
   }
   // Client-side: use public environment variable
-  return process.env.NEXT_PUBLIC_OPENROUTER_API_KEY || 
-         '[REDACTED_OPENROUTER_KEY]';
+  return process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
 }
 
 /**

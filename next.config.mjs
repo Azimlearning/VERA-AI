@@ -1,21 +1,22 @@
+import path from "node:path";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  images: {
-    loader: "custom",
-    loaderFile: "./loader.js",
-  },
   reactCompiler: true,
+  turbopack: {
+    root: path.resolve("."),
+  },
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'storage.googleapis.com',
-        pathname: '/**',
+        protocol: "https",
+        hostname: "storage.googleapis.com",
+        pathname: "/**",
       },
       {
-        protocol: 'https',
-        hostname: 'firebasestorage.googleapis.com',
-        pathname: '/**',
+        protocol: "https",
+        hostname: "firebasestorage.googleapis.com",
+        pathname: "/**",
       },
     ],
   },
