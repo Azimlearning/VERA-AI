@@ -35,9 +35,9 @@ export async function POST(request) {
 
     const providedApiKey = request.headers.get('x-gemini-api-key') || body.geminiApiKey || '';
     const demoCode = request.headers.get('x-vera-demo-code') || body.demoAccessCode || '';
+    const presenterSession = request.cookies.get('vera-presenter-session')?.value;
     const canUseServerKey = process.env.VERA_DEMO_ACCESS_CODE &&
-      demoCode &&
-      demoCode === process.env.VERA_DEMO_ACCESS_CODE;
+      ((demoCode && demoCode === process.env.VERA_DEMO_ACCESS_CODE) || presenterSession === 'active');
     const apiKey = providedApiKey || (canUseServerKey ? process.env.GEMINI_API_KEY : '');
 
     if (!apiKey) {

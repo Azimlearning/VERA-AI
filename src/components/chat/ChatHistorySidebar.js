@@ -104,7 +104,10 @@ export default function ChatHistorySidebar({ onNewChat, onLoadSession, currentSe
   // Load chat sessions from Firestore
   useEffect(() => {
     const updateAuthState = () => {
-      setIsPresenterLoggedIn(sessionStorage.getItem('isLoggedIn') === 'true');
+      setIsPresenterLoggedIn(
+        sessionStorage.getItem('isLoggedIn') === 'true' ||
+        localStorage.getItem('vera-presenter-authenticated') === 'true'
+      );
       setHasDemoCode(Boolean(getStoredDemoConfig().demoAccessCode));
     };
 
@@ -137,7 +140,9 @@ export default function ChatHistorySidebar({ onNewChat, onLoadSession, currentSe
 
   const handleLogout = () => {
     sessionStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('vera-presenter-authenticated');
     clearStoredDemoConfig();
+    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
     setIsPresenterLoggedIn(false);
     setHasDemoCode(false);
     router.push('/setup');

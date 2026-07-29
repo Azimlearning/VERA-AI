@@ -36,19 +36,32 @@ function LoginContent() {
     const correctUsername = 'admin123';
     const correctPassword = 'password123';
 
-    if (username === correctUsername && password === correctPassword) {
-      sessionStorage.setItem('isLoggedIn', 'true');
-      if (demoAccessCode.trim()) {
-        saveStoredDemoConfig({
-          ...getStoredDemoConfig(),
-          demoAccessCode: demoAccessCode.trim(),
-        });
-      }
-      setIsNavigating(true);
-      router.push(redirectUrl);
-    } else {
+    if (username !== correctUsername || password !== correctPassword) {
       setError('Invalid username or password.');
+      return;
     }
+
+    fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error((await response.json()).error || 'Login failed.');
+        }
+        sessionStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('vera-presenter-authenticated', 'true');
+        if (demoAccessCode.trim()) {
+          saveStoredDemoConfig({
+            ...getStoredDemoConfig(),
+            demoAccessCode: demoAccessCode.trim(),
+          });
+        }
+        setIsNavigating(true);
+        router.push(redirectUrl);
+      })
+      .catch((loginError) => setError(loginError.message));
   };
 
   return (

@@ -6,10 +6,12 @@ const GEMINI_MODEL = 'gemini-2.0-flash';
 
 function hasPresenterAccess(request) {
   const demoCode = request.headers.get('x-vera-demo-code');
+  const session = request.cookies.get('vera-presenter-session')?.value;
   return Boolean(
-    process.env.VERA_DEMO_ACCESS_CODE &&
-      demoCode &&
-      demoCode === process.env.VERA_DEMO_ACCESS_CODE
+    session === 'active' ||
+      (process.env.VERA_DEMO_ACCESS_CODE &&
+        demoCode &&
+        demoCode === process.env.VERA_DEMO_ACCESS_CODE)
   );
 }
 
@@ -46,9 +48,7 @@ function getAuthorizedOpenRouterKey(request) {
 
   const demoCode = request.headers.get('x-vera-demo-code');
   if (
-    process.env.VERA_DEMO_ACCESS_CODE &&
-    demoCode &&
-    demoCode === process.env.VERA_DEMO_ACCESS_CODE
+    hasPresenterAccess(request)
   ) {
     return process.env.OPENROUTER_API_KEY;
   }
@@ -64,9 +64,7 @@ function getAuthorizedGeminiKey(request) {
 
   const demoCode = request.headers.get('x-vera-demo-code');
   if (
-    process.env.VERA_DEMO_ACCESS_CODE &&
-    demoCode &&
-    demoCode === process.env.VERA_DEMO_ACCESS_CODE
+    hasPresenterAccess(request)
   ) {
     return process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
   }

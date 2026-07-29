@@ -9,8 +9,9 @@ function getAuthorizedApiKey(request, body) {
 
   const demoCode = request.headers.get('x-vera-demo-code') || body.demoAccessCode;
   const expectedCode = process.env.VERA_DEMO_ACCESS_CODE;
+  const presenterSession = request.cookies.get('vera-presenter-session')?.value;
 
-  if (expectedCode && demoCode && demoCode === expectedCode) {
+  if (presenterSession === 'active' || (expectedCode && demoCode && demoCode === expectedCode)) {
     return process.env.OPENROUTER_API_KEY;
   }
 
