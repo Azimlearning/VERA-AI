@@ -11,6 +11,7 @@ This repository is optimized as a portfolio-ready Next.js project that can run l
 - Web app: [https://upstream-vera-ai.vercel.app](https://upstream-vera-ai.vercel.app)
 - Demo walkthrough: [https://upstream-vera-ai.vercel.app/demo](https://upstream-vera-ai.vercel.app/demo)
 - API key setup: [https://upstream-vera-ai.vercel.app/setup](https://upstream-vera-ai.vercel.app/setup)
+- Presenter login: [https://upstream-vera-ai.vercel.app/login](https://upstream-vera-ai.vercel.app/login)
 
 ## Highlights
 
@@ -55,6 +56,15 @@ The repository includes sample inputs and presentation assets used for the inter
 - [Presentation PDF](docs/showcase-assets/SIP%20Presentation%20VERA-AI%20Fakhrul%20Azim%20copy%201%20%282%29.pdf)
 
 Use `/demo` in the hosted app for a quick guided overview of the example flows.
+
+## Showcase Access
+
+The hosted showcase has two access paths:
+
+- Public mode: browse the interface and demo pages, or add personal OpenRouter/Gemini keys on `/setup`.
+- Presenter mode: open `/login` and use the presenter credentials documented in [SETUP.md](./SETUP.md). A server session is created after login, so the private Vercel credentials are never placed in the browser.
+
+If the live provider credentials are unavailable or rejected, presenter mode uses a clearly labelled demo-safe fallback response so the showcase remains usable. Public requests without a key return a no-key message instead of silently pretending to have live AI access.
 
 ## Tech Stack
 
@@ -112,6 +122,8 @@ npm run dev
 Open `http://localhost:3000`.
 
 For full setup details, see [SETUP.md](./SETUP.md).
+
+The repository is designed to run from this folder after cloning. `.env.local`, generated output, raw internship data, and credential files are intentionally excluded from Git, so a fresh clone must be configured using `.env.example` and [SETUP.md](./SETUP.md).
 
 ## Useful Scripts
 

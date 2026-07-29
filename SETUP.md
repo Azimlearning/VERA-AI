@@ -70,7 +70,7 @@ VERA-AI supports three practical demo modes.
 
 ### Presenter Mode
 
-Use this when you own the deployment and want your private API keys to stay in Vercel.
+Use this when you own the deployment and want private API keys to stay in Vercel.
 
 Set these in Vercel Project Settings:
 
@@ -80,7 +80,18 @@ GEMINI_API_KEY=
 VERA_DEMO_ACCESS_CODE=
 ```
 
-Then open `/login` or `/setup` and enter the demo access code. The browser stores only the access code, not your API keys.
+Then open `/login` and use:
+
+```text
+Username: admin123
+Password: password123
+```
+
+Login creates a server-side presenter session. The optional demo access code field is useful for older clients or direct API testing, but it is not required for the current web login flow. The browser stores no server API keys.
+
+After login, the sidebar should show `Presenter access active`. Use the `Logout` control in the sidebar or `/setup` to clear the session.
+
+For a portfolio-only deployment, presenter mode also has a deterministic demo fallback when the configured provider is unavailable. For live AI responses, the `OPENROUTER_API_KEY` or `GEMINI_API_KEY` in Vercel must be valid, active, and permitted to use the selected model.
 
 ### Public Bring-Your-Own-Key Mode
 
@@ -135,6 +146,8 @@ The current hosted showcase is:
 https://upstream-vera-ai.vercel.app
 ```
 
+After changing environment variables, redeploy the Vercel project. Environment variables are not included in Git and cannot be recovered from a fresh clone.
+
 ## 8. Optional Python Image Service
 
 The `python/` folder contains local image-generation experiments and is not required for the Vercel frontend.
@@ -149,6 +162,7 @@ python local_image_generator.py
 
 - Never commit `.env.local`.
 - Rotate any API key that was ever committed or shared.
+- The sample presenter credentials are showcase credentials, not production authentication. Replace the login implementation before using this app for real users.
 - Raw internship data is ignored under `data/raw/`.
 - Generated output folders and obvious credential filenames are ignored.
 - `.vercelignore` keeps non-frontend project material out of Vercel uploads.
