@@ -6,6 +6,12 @@ Live showcase: [https://upstream-vera-ai.vercel.app](https://upstream-vera-ai.ve
 
 This repository is optimized as a portfolio-ready Next.js project that can run locally and deploy to Vercel. Some live AI and Firebase features require private credentials and cloud services, so the public showcase can be treated as a UI/product demo unless those services are configured.
 
+## Live Demo
+
+- Web app: [https://upstream-vera-ai.vercel.app](https://upstream-vera-ai.vercel.app)
+- Demo walkthrough: [https://upstream-vera-ai.vercel.app/demo](https://upstream-vera-ai.vercel.app/demo)
+- API key setup: [https://upstream-vera-ai.vercel.app/setup](https://upstream-vera-ai.vercel.app/setup)
+
 ## Highlights
 
 - VERA assistant interface with knowledge-oriented chat UX
@@ -16,6 +22,39 @@ This repository is optimized as a portfolio-ready Next.js project that can run l
 - Documentation and demo materials collected under `docs/`
 - Public setup page for bring-your-own API keys
 - Presentation demo page with example agent flows
+
+## Screenshots
+
+### Microsite Preview
+
+![VERA-AI laptop preview](public/OurCollaterals/Microsite-Preview-on-Laptop.png)
+
+### Agent Examples
+
+| Analytics Agent | Meeting Agent |
+| --- | --- |
+| ![Analytics Agent demo](docs/showcase-assets/analytical%20agent/Screenshot%202025-12-07%20114000.png) | ![Meeting Agent demo](docs/showcase-assets/meeting%20agent/Screenshot%202025-12-07%20114208.png) |
+
+| Content Agent | Visual Agent |
+| --- | --- |
+| ![Content Agent demo](docs/showcase-assets/CONTENT%20AGENT/Screenshot%202025-12-07%20230357.png) | ![Visual Agent demo](docs/showcase-assets/image%20analyze%20agent/Screenshot%202025-12-07%20112120.png) |
+
+| Podcast Agent | Quiz Agent |
+| --- | --- |
+| ![Podcast Agent demo](docs/showcase-assets/podcast%20agent/Screenshot%202025-12-07%20114715.png) | ![Quiz Agent demo](docs/showcase-assets/quiz%20agnet/Screenshot%202025-12-07%20113407.png) |
+
+## Demo Materials
+
+The repository includes sample inputs and presentation assets used for the internship demo:
+
+- [Demo checklist](demo/VERA-demo-checklist.md)
+- [Copy-paste prompts](demo/prompts_copypaste.txt)
+- [Sample production data](demo/production_data.csv)
+- [Sample meeting transcript](demo/meeting_transcript_sample.txt)
+- [Content agent sample input](demo/content_agent_input.txt)
+- [Presentation PDF](docs/showcase-assets/SIP%20Presentation%20VERA-AI%20Fakhrul%20Azim%20copy%201%20%282%29.pdf)
+
+Use `/demo` in the hosted app for a quick guided overview of the example flows.
 
 ## Tech Stack
 
