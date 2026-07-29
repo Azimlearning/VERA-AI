@@ -4,6 +4,40 @@ const DEFAULT_CHAT_FUNCTION_URL = 'https://askchatbot-el2jwxb5bq-uc.a.run.app';
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const GEMINI_MODEL = 'gemini-2.0-flash';
 
+function hasPresenterAccess(request) {
+  const demoCode = request.headers.get('x-vera-demo-code');
+  return Boolean(
+    process.env.VERA_DEMO_ACCESS_CODE &&
+      demoCode &&
+      demoCode === process.env.VERA_DEMO_ACCESS_CODE
+  );
+}
+
+function buildPresenterDemoReply(message) {
+  const question = message.toLowerCase();
+  let reply = `Presenter demo mode is active. VERA could not reach the live provider for this request, so this showcase response is running locally. Your question was: “${message}”`;
+
+  if (question.includes('net zero') || question.includes('2050')) {
+    reply = 'A practical Net Zero 2050 pathway is usually presented in stages: establish a verified emissions baseline, improve energy efficiency, reduce routine flaring and methane leakage, scale lower-carbon operations, and use carefully governed offsets only for residual emissions. Each stage should have measurable targets, owners, and regular reporting.';
+  } else if (question.includes('agent') || question.includes('demo')) {
+    reply = 'VERA-AI is designed as a multi-agent knowledge assistant. The showcase can route questions to specialist workflows, combine retrieved context, and present concise answers with supporting sources when the connected knowledge base and provider APIs are available.';
+  } else if (question.includes('architecture') || question.includes('setup')) {
+    reply = 'The showcase uses a Next.js interface, Firebase-backed services, server-side API routes, and local presenter or public API-key configuration. Keeping provider calls behind the server route prevents provider credentials from being embedded in the browser bundle.';
+  }
+
+  return {
+    reply,
+    suggestions: [
+      'What are the key milestones for Net Zero 2050?',
+      'Show me the agent demo options',
+      'Explain the VERA-AI project architecture',
+    ],
+    citations: [],
+    fallback: true,
+    provider: 'presenter-demo',
+  };
+}
+
 function getAuthorizedOpenRouterKey(request) {
   const userKey = request.headers.get('x-openrouter-api-key');
   if (userKey) {
@@ -195,6 +229,10 @@ export async function POST(request) {
           return NextResponse.json(await callGeminiFallback(payload, getAuthorizedGeminiKey(request)));
         } catch (geminiError) {
           console.warn('[api/chat] Gemini fallback unavailable:', geminiError.message);
+          if (hasPresenterAccess(request)) {
+            console.warn('[api/chat] Returning presenter demo response after provider failures.');
+            return NextResponse.json(buildPresenterDemoReply(payload.message.trim()));
+          }
           return NextResponse.json(
             {
               error: [
