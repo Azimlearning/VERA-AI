@@ -3,6 +3,7 @@
 // Uses the models specified for different input/output modalities
 
 import { AI_MODEL_CONSTANTS } from './aiModelConstants';
+import { getClientOpenRouterKey, getDemoAccessCode } from './apiKeys';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1';
 // Alternative: Some models might use openrouter.co
@@ -16,8 +17,36 @@ function getApiKey() {
     // Server-side: use environment variable
     return process.env.OPENROUTER_API_KEY;
   }
-  // Client-side: use public environment variable
-  return process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
+  return getClientOpenRouterKey() || process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
+}
+
+async function proxyOpenRouterRequest(endpoint, payload) {
+  const demoAccessCode = typeof window !== 'undefined' ? getDemoAccessCode() : '';
+
+  if (!demoAccessCode) {
+    throw new Error('No API key configured. Add your own key or presenter access code on /setup.');
+  }
+
+  const response = await fetch('/api/openrouter', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-vera-demo-code': demoAccessCode,
+    },
+    body: JSON.stringify({
+      endpoint,
+      payload,
+      demoAccessCode,
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || `OpenRouter proxy error (${response.status})`);
+  }
+
+  return data;
 }
 
 /**
@@ -80,9 +109,6 @@ export async function generateText({
   images = []
 }) {
   const apiKey = getApiKey();
-  if (!apiKey) {
-    throw new Error('OpenRouter API key not found');
-  }
 
   const headers = {
     'Authorization': `Bearer ${apiKey}`,
@@ -124,18 +150,19 @@ export async function generateText({
   };
 
   try {
-    const response = await fetch(`${OPENROUTER_API_URL}/chat/completions`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body)
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`OpenRouter API error (${response.status}): ${errorText}`);
-    }
-
-    const data = await response.json();
+    const data = apiKey
+      ? await fetch(`${OPENROUTER_API_URL}/chat/completions`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body)
+        }).then(async (response) => {
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`OpenRouter API error (${response.status}): ${errorText}`);
+          }
+          return response.json();
+        })
+      : await proxyOpenRouterRequest('chat/completions', body);
     
     if (!data.choices || !data.choices[0] || !data.choices[0].message) {
       throw new Error('Invalid response format from OpenRouter');
@@ -159,9 +186,6 @@ export async function generateEmbedding(
   model = OPENROUTER_MODELS.embeddings.primary
 ) {
   const apiKey = getApiKey();
-  if (!apiKey) {
-    throw new Error('OpenRouter API key not found');
-  }
 
   const headers = {
     'Authorization': `Bearer ${apiKey}`,
@@ -176,18 +200,19 @@ export async function generateEmbedding(
   };
 
   try {
-    const response = await fetch(`${OPENROUTER_API_URL}/embeddings`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body)
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`OpenRouter embeddings error (${response.status}): ${errorText}`);
-    }
-
-    const data = await response.json();
+    const data = apiKey
+      ? await fetch(`${OPENROUTER_API_URL}/embeddings`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body)
+        }).then(async (response) => {
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`OpenRouter embeddings error (${response.status}): ${errorText}`);
+          }
+          return response.json();
+        })
+      : await proxyOpenRouterRequest('embeddings', body);
     
     if (!data.data || !data.data[0] || !data.data[0].embedding) {
       throw new Error('Invalid embedding response format');
@@ -213,9 +238,6 @@ export async function generateImage(
   options = {}
 ) {
   const apiKey = getApiKey();
-  if (!apiKey) {
-    throw new Error('OpenRouter API key not found');
-  }
 
   const headers = {
     'Authorization': `Bearer ${apiKey}`,
@@ -245,24 +267,24 @@ export async function generateImage(
   try {
     // OpenRouter uses /images/generations endpoint for image generation (OpenAI-compatible format)
     // This matches the format used in functions/aiHelper.js
-    const response = await fetch(`${OPENROUTER_API_URL}/images/generations`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body)
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      // Log the full error for debugging
-      console.error('[OpenRouter Image Generation] Full error response:', {
-        status: response.status,
-        statusText: response.statusText,
-        body: errorText
-      });
-      throw new Error(`OpenRouter image generation error (${response.status}): ${errorText}`);
-    }
-
-    const data = await response.json();
+    const data = apiKey
+      ? await fetch(`${OPENROUTER_API_URL}/images/generations`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body)
+        }).then(async (response) => {
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[OpenRouter Image Generation] Full error response:', {
+              status: response.status,
+              statusText: response.statusText,
+              body: errorText
+            });
+            throw new Error(`OpenRouter image generation error (${response.status}): ${errorText}`);
+          }
+          return response.json();
+        })
+      : await proxyOpenRouterRequest('images/generations', body);
     
     // OpenRouter returns image data in OpenAI-compatible format
     // Format: { data: [{ url: "..." }] } or { data: [{ b64_json: "..." }] }

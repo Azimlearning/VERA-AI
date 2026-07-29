@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { FaPlus, FaTrash, FaSearch, FaChevronDown, FaChevronUp, FaInfoCircle, FaRobot } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaSearch, FaChevronDown, FaChevronUp, FaInfoCircle, FaRobot, FaKey, FaPlayCircle } from 'react-icons/fa';
 import { db } from '../../lib/firebase';
 import { collection, getDocs, query, orderBy, limit, deleteDoc, doc } from 'firebase/firestore';
 import VeraLogo from '../brand/VeraLogo';
@@ -209,6 +209,30 @@ export default function ChatHistorySidebar({ onNewChat, onLoadSession, currentSe
           >
             <FaRobot className="w-4 h-4" />
             <span>AI Agents</span>
+          </Link>
+
+          <Link 
+            href="/demo" 
+            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+              pathname === '/demo' 
+                ? 'text-teal-400 bg-gray-700' 
+                : 'text-gray-300 hover:text-white hover:bg-gray-700'
+            }`}
+          >
+            <FaPlayCircle className="w-4 h-4" />
+            <span>Demo</span>
+          </Link>
+
+          <Link 
+            href="/setup" 
+            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+              pathname === '/setup' 
+                ? 'text-teal-400 bg-gray-700' 
+                : 'text-gray-300 hover:text-white hover:bg-gray-700'
+            }`}
+          >
+            <FaKey className="w-4 h-4" />
+            <span>Setup</span>
           </Link>
         </div>
       </div>

@@ -2,6 +2,8 @@
 
 VERA-AI is an internship showcase project for an enterprise AI assistant concept built around Retrieval-Augmented Generation, knowledge base search, and task-specific AI agents. The microsite presents a PETRONAS Upstream-focused assistant experience with chat, analytics, meetings, content, visual, podcast, and quiz workflows.
 
+Live showcase: [https://upstream-vera-ai.vercel.app](https://upstream-vera-ai.vercel.app)
+
 This repository is optimized as a portfolio-ready Next.js project that can run locally and deploy to Vercel. Some live AI and Firebase features require private credentials and cloud services, so the public showcase can be treated as a UI/product demo unless those services are configured.
 
 ## Highlights
@@ -12,6 +14,8 @@ This repository is optimized as a portfolio-ready Next.js project that can run l
 - Firebase integration points for Firestore, Storage, and Cloud Functions
 - Optional Python service for local image generation experiments
 - Documentation and demo materials collected under `docs/`
+- Public setup page for bring-your-own API keys
+- Presentation demo page with example agent flows
 
 ## Tech Stack
 
@@ -40,6 +44,7 @@ VERA-AI/
 │   └── showcase-assets/     # Screenshots and presentation material
 ├── data/raw/                # Local-only raw internship files
 ├── .env.example
+├── SETUP.md
 └── package.json
 ```
 
@@ -67,6 +72,8 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+For full setup details, see [SETUP.md](./SETUP.md).
+
 ## Useful Scripts
 
 ```bash
@@ -86,9 +93,15 @@ npm run lint     # Run ESLint
 
 For a simple portfolio showcase, the frontend can be deployed first. Firebase Functions, RAG retrieval, and provider-backed AI generation should be configured separately when you want the live cloud workflows enabled.
 
+Current production deployment:
+
+[https://upstream-vera-ai.vercel.app](https://upstream-vera-ai.vercel.app)
+
 ## Notes
 
 - `.env.local`, raw data, output files, and obvious credential files are ignored by Git.
+- Public users can open `/setup` to use their own API keys.
+- Presenter demos can use Vercel server-side API keys with `VERA_DEMO_ACCESS_CODE`.
 - The old project documentation has been moved to `docs/project-documentation/`.
 - Local showcase screenshots and presentation material live in `docs/showcase-assets/`.
 - The Python service is optional and not required for the Vercel frontend deployment.

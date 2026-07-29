@@ -5,17 +5,19 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { getStoredDemoConfig, saveStoredDemoConfig } from '../../lib/apiKeys';
 
 function LoginContent() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [demoAccessCode, setDemoAccessCode] = useState(() => getStoredDemoConfig().demoAccessCode || '');
   const [error, setError] = useState('');
   const [isNavigating, setIsNavigating] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   
   // --- CORRECTED REDIRECT URL ---
-  const redirectUrl = searchParams.get('redirect') || '/nexushub/dropbox';
+  const redirectUrl = searchParams.get('redirect') || '/setup';
   // --- END CORRECTION ---
 
   useEffect(() => {
@@ -36,6 +38,12 @@ function LoginContent() {
 
     if (username === correctUsername && password === correctPassword) {
       sessionStorage.setItem('isLoggedIn', 'true');
+      if (demoAccessCode.trim()) {
+        saveStoredDemoConfig({
+          ...getStoredDemoConfig(),
+          demoAccessCode: demoAccessCode.trim(),
+        });
+      }
       setIsNavigating(true);
       router.push(redirectUrl);
     } else {
@@ -58,7 +66,7 @@ function LoginContent() {
         </div>
 
         <h1 className="text-3xl md:text-4xl font-bold text-center text-teal-700 mb-8">
-          Admin Login
+          Presenter Login
         </h1>
         <form onSubmit={handleLogin} className="space-y-6">
            <div>
@@ -95,6 +103,22 @@ function LoginContent() {
               placeholder="password123"
             />
           </div>
+          <div>
+            <label
+              htmlFor="demoAccessCode"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Demo Access Code
+            </label>
+            <input
+              type="password"
+              id="demoAccessCode"
+              value={demoAccessCode}
+              onChange={(e) => setDemoAccessCode(e.target.value)}
+              className="block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 text-gray-900"
+              placeholder="Optional private demo code"
+            />
+          </div>
           {error && (
             <p className="text-red-600 text-sm text-center">{error}</p>
           )}
@@ -107,7 +131,10 @@ function LoginContent() {
             </button>
           </div>
         </form>
-        <div className="mt-6 text-center">
+        <div className="mt-6 grid gap-2 text-center">
+          <Link href="/setup" className="text-sm text-gray-600 hover:text-teal-600 hover:underline">
+            Public setup: use your own API keys
+          </Link>
           <Link href="/" className="text-sm text-gray-600 hover:text-teal-600 hover:underline">
             ← Back to Home Page
           </Link>
