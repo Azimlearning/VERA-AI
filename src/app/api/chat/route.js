@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 const DEFAULT_CHAT_FUNCTION_URL = 'https://askchatbot-el2jwxb5bq-uc.a.run.app';
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const GEMINI_MODEL = 'gemini-2.0-flash';
 
 function getAuthorizedOpenRouterKey(request) {
   const userKey = request.headers.get('x-openrouter-api-key');
@@ -16,6 +17,24 @@ function getAuthorizedOpenRouterKey(request) {
     demoCode === process.env.VERA_DEMO_ACCESS_CODE
   ) {
     return process.env.OPENROUTER_API_KEY;
+  }
+
+  return '';
+}
+
+function getAuthorizedGeminiKey(request) {
+  const userKey = request.headers.get('x-gemini-api-key');
+  if (userKey) {
+    return userKey;
+  }
+
+  const demoCode = request.headers.get('x-vera-demo-code');
+  if (
+    process.env.VERA_DEMO_ACCESS_CODE &&
+    demoCode &&
+    demoCode === process.env.VERA_DEMO_ACCESS_CODE
+  ) {
+    return process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
   }
 
   return '';
@@ -47,10 +66,7 @@ async function callFirebaseChatbot(payload) {
 
 async function callOpenRouterFallback(payload, apiKey) {
   if (!apiKey) {
-    return NextResponse.json(
-      { error: 'No API key configured. Log in with the presenter code or add your own OpenRouter key on /setup.' },
-      { status: 401 }
-    );
+    throw new Error('No OpenRouter API key configured.');
   }
 
   const response = await fetch(OPENROUTER_API_URL, {
@@ -85,13 +101,10 @@ async function callOpenRouterFallback(payload, apiKey) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    return NextResponse.json(
-      { error: data.error?.message || data.error || `OpenRouter returned ${response.status}` },
-      { status: response.status }
-    );
+    throw new Error(data.error?.message || data.error || `OpenRouter returned ${response.status}`);
   }
 
-  return NextResponse.json({
+  return {
     reply: data.choices?.[0]?.message?.content || 'No response was returned.',
     suggestions: [
       'Show me the agent demo options',
@@ -100,7 +113,65 @@ async function callOpenRouterFallback(payload, apiKey) {
     ],
     citations: [],
     fallback: true,
+    provider: 'openrouter',
+  };
+}
+
+async function callGeminiFallback(payload, apiKey) {
+  if (!apiKey) {
+    throw new Error('No Gemini API key configured.');
+  }
+
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text: [
+                'You are VERA, a concise AI assistant for a PETRONAS Upstream internship showcase.',
+                'Answer professionally. If knowledge-base citations are unavailable, say so plainly.',
+                `User question: ${payload.message}`,
+              ].join('\n\n'),
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: payload.temperature ?? 0.4,
+        maxOutputTokens: payload.maxTokens || 900,
+      },
+    }),
   });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error?.message || `Gemini returned ${response.status}`);
+  }
+
+  const reply = data.candidates?.[0]?.content?.parts
+    ?.map((part) => part.text || '')
+    .join('')
+    .trim();
+
+  return {
+    reply: reply || 'No response was returned.',
+    suggestions: [
+      'Show me the agent demo options',
+      'Explain the VERA-AI project architecture',
+      'How do I configure the full demo'
+    ],
+    citations: [],
+    fallback: true,
+    provider: 'gemini',
+  };
 }
 
 export async function POST(request) {
@@ -116,7 +187,26 @@ export async function POST(request) {
       return NextResponse.json(data);
     } catch (firebaseError) {
       console.warn('[api/chat] Firebase chatbot unavailable, using fallback:', firebaseError.message);
-      return callOpenRouterFallback(payload, getAuthorizedOpenRouterKey(request));
+      try {
+        return NextResponse.json(await callOpenRouterFallback(payload, getAuthorizedOpenRouterKey(request)));
+      } catch (openRouterError) {
+        console.warn('[api/chat] OpenRouter fallback unavailable, trying Gemini:', openRouterError.message);
+        try {
+          return NextResponse.json(await callGeminiFallback(payload, getAuthorizedGeminiKey(request)));
+        } catch (geminiError) {
+          console.warn('[api/chat] Gemini fallback unavailable:', geminiError.message);
+          return NextResponse.json(
+            {
+              error: [
+                'No working API key configured.',
+                'Log in with the presenter code or add your own OpenRouter/Gemini key on /setup.',
+                `Last provider error: ${geminiError.message}`,
+              ].join(' '),
+            },
+            { status: 401 }
+          );
+        }
+      }
     }
   } catch (error) {
     return NextResponse.json(
