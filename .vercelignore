@@ -3,13 +3,13 @@
 node_modules
 
 # Local-only project material
-data/
-demo/
-docs/
+/data/
+/demo/
+/docs/
 
 # Not required for the Vercel frontend deployment
-functions/
-python/
+/functions/
+/python/
 
 # Local environment and logs
 .env*
