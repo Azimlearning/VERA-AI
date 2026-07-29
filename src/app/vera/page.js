@@ -22,6 +22,7 @@ import SettingsMenu from '../../components/vera/SettingsMenu';
 import ArtifactPanel from '../../components/vera/ArtifactPanel';
 import { db } from '../../lib/firebase';
 import { collection, addDoc, updateDoc, doc, serverTimestamp, onSnapshot } from 'firebase/firestore';
+import { buildDemoHeaders } from '../../lib/apiKeys';
 
 // Agent definitions matching AgentSelector
 const AGENTS = [
@@ -76,7 +77,7 @@ const AGENTS = [
 ];
 
 function VeraContent() {
-  const chatFunctionUrl = "https://askchatbot-el2jwxb5bq-uc.a.run.app";
+  const chatFunctionUrl = "/api/chat";
   const searchParams = useSearchParams();
   const agentParam = searchParams.get('agent');
   
@@ -2016,7 +2017,7 @@ function VeraContent() {
 
       const response = await fetch(chatFunctionUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...buildDemoHeaders() },
         body: JSON.stringify({ 
           message: messageText,
           agent: selectedAgent?.id || null,

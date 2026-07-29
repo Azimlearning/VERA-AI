@@ -7,8 +7,7 @@ import { FaCommentDots, FaTimes } from 'react-icons/fa';
 export default function MiniChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
 
-  // --- IMPORTANT: Get your deployed function URL ---
-  const chatFunctionUrl = "https://askchatbot-el2jwxb5bq-uc.a.run.app"; // <-- FIXED URL
+  const chatFunctionUrl = "/api/chat";
 
   return (
     <>

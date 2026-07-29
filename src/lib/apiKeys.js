@@ -42,8 +42,13 @@ export function getDemoAccessCode() {
 
 export function buildDemoHeaders() {
   const headers = {};
+  const openRouterApiKey = getClientOpenRouterKey();
   const geminiApiKey = getClientGeminiKey();
   const demoAccessCode = getDemoAccessCode();
+
+  if (openRouterApiKey) {
+    headers['x-openrouter-api-key'] = openRouterApiKey;
+  }
 
   if (geminiApiKey) {
     headers['x-gemini-api-key'] = geminiApiKey;

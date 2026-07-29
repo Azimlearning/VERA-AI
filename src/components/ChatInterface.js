@@ -3,6 +3,7 @@
 // This code is the logic from your old Faq.js, now reusable
 import { useState, useEffect, useRef } from 'react';
 import { FaUserCircle, FaRobot, FaTimes, FaSync } from 'react-icons/fa';
+import { buildDemoHeaders } from '../lib/apiKeys';
 
 export default function ChatInterface({ chatFunctionUrl }) {
   const [chatInput, setChatInput] = useState('');
@@ -42,7 +43,7 @@ export default function ChatInterface({ chatFunctionUrl }) {
     try {
       const response = await fetch(chatFunctionUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...buildDemoHeaders() },
         body: JSON.stringify({ message: userMessage })
       });
       if (!response.ok) {

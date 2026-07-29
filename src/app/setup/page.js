@@ -17,10 +17,13 @@ const emptyConfig = {
 
 export default function SetupPage() {
   const [config, setConfig] = useState(() => ({ ...emptyConfig, ...getStoredDemoConfig() }));
+  const [isPresenterLoggedIn, setIsPresenterLoggedIn] = useState(false);
   const [saved, setSaved] = useState(false);
   const [status, setStatus] = useState(null);
 
   useEffect(() => {
+    setIsPresenterLoggedIn(sessionStorage.getItem('isLoggedIn') === 'true');
+
     fetch('/api/config/status')
       .then((response) => response.json())
       .then(setStatus)
@@ -39,9 +42,11 @@ export default function SetupPage() {
   };
 
   const handleClear = () => {
+    sessionStorage.removeItem('isLoggedIn');
     clearStoredDemoConfig();
     setConfig(emptyConfig);
     setSaved(false);
+    setIsPresenterLoggedIn(false);
   };
 
   return (
@@ -51,6 +56,9 @@ export default function SetupPage() {
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">VERA-AI Setup</p>
             <h1 className="mt-2 text-3xl font-bold">Configure live demo access</h1>
+            <p className="mt-2 text-sm text-slate-600">
+              Current mode: <span className="font-semibold">{isPresenterLoggedIn || config.demoAccessCode ? 'Presenter access active' : 'Public mode'}</span>
+            </p>
           </div>
           <Link
             href="/"
@@ -133,7 +141,7 @@ export default function SetupPage() {
               className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-red-300 hover:text-red-600"
             >
               <FaTrash className="h-3 w-3" />
-              Clear
+              Logout and clear
             </button>
             {saved && (
               <span className="inline-flex items-center gap-2 text-sm font-semibold text-teal-700">

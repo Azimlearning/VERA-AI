@@ -8,6 +8,7 @@ import { FaPlus, FaTrash, FaSearch, FaChevronDown, FaChevronUp, FaInfoCircle, Fa
 import { db } from '../../lib/firebase';
 import { collection, getDocs, query, orderBy, limit, deleteDoc, doc } from 'firebase/firestore';
 import VeraLogo from '../brand/VeraLogo';
+import { clearStoredDemoConfig, getStoredDemoConfig } from '../../lib/apiKeys';
 
 // --- NOW accepts an 'onNewChat' prop and 'onLoadSession' callback ---
 export default function ChatHistorySidebar({ onNewChat, onLoadSession, currentSessionId, selectedAgent = null }) {
@@ -15,6 +16,8 @@ export default function ChatHistorySidebar({ onNewChat, onLoadSession, currentSe
   const router = useRouter();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isPresenterLoggedIn, setIsPresenterLoggedIn] = useState(false);
+  const [hasDemoCode, setHasDemoCode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedGroups, setExpandedGroups] = useState({ 'today': true, 'yesterday': true, 'week': true });
 
@@ -100,6 +103,14 @@ export default function ChatHistorySidebar({ onNewChat, onLoadSession, currentSe
 
   // Load chat sessions from Firestore
   useEffect(() => {
+    const updateAuthState = () => {
+      setIsPresenterLoggedIn(sessionStorage.getItem('isLoggedIn') === 'true');
+      setHasDemoCode(Boolean(getStoredDemoConfig().demoAccessCode));
+    };
+
+    updateAuthState();
+    window.addEventListener('storage', updateAuthState);
+
     const loadSessions = async () => {
       try {
         const q = query(
@@ -121,7 +132,16 @@ export default function ChatHistorySidebar({ onNewChat, onLoadSession, currentSe
     };
 
     loadSessions();
+    return () => window.removeEventListener('storage', updateAuthState);
   }, []);
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('isLoggedIn');
+    clearStoredDemoConfig();
+    setIsPresenterLoggedIn(false);
+    setHasDemoCode(false);
+    router.push('/setup');
+  };
 
   // Handle loading a session
   const handleLoadSession = async (session) => {
@@ -234,6 +254,42 @@ export default function ChatHistorySidebar({ onNewChat, onLoadSession, currentSe
             <FaKey className="w-4 h-4" />
             <span>Setup</span>
           </Link>
+        </div>
+      </div>
+
+      <div className="px-4 py-3 border-b border-gray-700">
+        <div className="rounded-lg bg-gray-700/70 p-3 text-sm">
+          <div className="font-semibold text-gray-100">
+            {isPresenterLoggedIn || hasDemoCode ? 'Presenter access active' : 'Public mode'}
+          </div>
+          <div className="mt-1 text-xs text-gray-300">
+            {isPresenterLoggedIn || hasDemoCode
+              ? 'Server API access is enabled for this browser.'
+              : 'Log in or add your own keys for live AI features.'}
+          </div>
+          <div className="mt-3 flex gap-2">
+            {isPresenterLoggedIn || hasDemoCode ? (
+              <button
+                onClick={handleLogout}
+                className="rounded-md border border-gray-500 px-3 py-1.5 text-xs font-semibold text-gray-100 hover:border-red-300 hover:text-red-200"
+              >
+                Logout
+              </button>
+            ) : (
+              <Link
+                href="/login?redirect=/vera"
+                className="rounded-md bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700"
+              >
+                Login
+              </Link>
+            )}
+            <Link
+              href="/setup"
+              className="rounded-md border border-gray-500 px-3 py-1.5 text-xs font-semibold text-gray-100 hover:border-teal-300 hover:text-teal-200"
+            >
+              Keys
+            </Link>
+          </div>
         </div>
       </div>
       
